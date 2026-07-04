@@ -1,0 +1,1276 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#15130F">
+<title>Claude Code Quest</title>
+<style>
+/* ── tokens ──────────────────────────────────────────────── */
+:root{
+  --bg:#15130F; --panel:#1F1B14; --raise:#272216; --line:#3A3323;
+  --text:#EFE8DA; --dim:#9D9482; --faint:#6E6650;
+  --accent:#E68A4E; --accent-ink:#1C1206; --accent-soft:rgba(230,138,78,.13);
+  --good:#8FC08A; --good-soft:rgba(143,192,138,.13);
+  --bad:#D96A5F; --bad-soft:rgba(217,106,95,.12);
+  --warn:#D6A345;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+  --fs:17px; --radius:8px;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#F1EFE8; --panel:#FBFAF6; --raise:#FFFFFF; --line:#DCD5C4;
+    --text:#2A2517; --dim:#6F6753; --faint:#A39A83;
+    --accent:#BC5F25; --accent-ink:#FFF6EE; --accent-soft:rgba(188,95,37,.10);
+    --good:#3F7E3B; --good-soft:rgba(63,126,59,.10);
+    --bad:#B04A3E; --bad-soft:rgba(176,74,62,.09);
+    --warn:#93690F;
+    --shadow:0 8px 24px rgba(60,50,20,.12);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15130F; --panel:#1F1B14; --raise:#272216; --line:#3A3323;
+  --text:#EFE8DA; --dim:#9D9482; --faint:#6E6650;
+  --accent:#E68A4E; --accent-ink:#1C1206; --accent-soft:rgba(230,138,78,.13);
+  --good:#8FC08A; --good-soft:rgba(143,192,138,.13);
+  --bad:#D96A5F; --bad-soft:rgba(217,106,95,.12);
+  --warn:#D6A345;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+:root[data-theme="light"]{
+  --bg:#F1EFE8; --panel:#FBFAF6; --raise:#FFFFFF; --line:#DCD5C4;
+  --text:#2A2517; --dim:#6F6753; --faint:#A39A83;
+  --accent:#BC5F25; --accent-ink:#FFF6EE; --accent-soft:rgba(188,95,37,.10);
+  --good:#3F7E3B; --good-soft:rgba(63,126,59,.10);
+  --bad:#B04A3E; --bad-soft:rgba(176,74,62,.09);
+  --warn:#93690F;
+  --shadow:0 8px 24px rgba(60,50,20,.12);
+}
+
+/* ── base ────────────────────────────────────────────────── */
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html{font-size:var(--fs);}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:var(--sans); line-height:1.55;
+  min-height:100vh; min-height:100dvh;
+  padding-bottom:env(safe-area-inset-bottom);
+  overscroll-behavior-y:none;
+}
+button{font:inherit; color:inherit; background:none; border:none; cursor:pointer; touch-action:manipulation;}
+code, .mono{font-family:var(--mono);}
+code{
+  background:var(--raise); border:1px solid var(--line); border-radius:5px;
+  padding:.08em .38em; font-size:.88em; white-space:nowrap;
+}
+.codewrap code{white-space:pre-wrap; word-break:break-all;}
+h1,h2,h3{font-family:var(--mono); letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:.5rem 0;}
+a{color:var(--accent);}
+
+#wrap{max-width:720px; margin:0 auto; padding:0 16px 108px;}
+.label{
+  font-family:var(--mono); font-size:.68rem; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--dim);
+}
+
+/* ── HUD ─────────────────────────────────────────────────── */
+#hud{
+  position:sticky; top:0; z-index:30; background:var(--bg);
+  border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+}
+#hud .inner{max-width:720px; margin:0 auto; display:flex; align-items:center; gap:14px;}
+.lvlchip{
+  font-family:var(--mono); font-size:.78rem; font-weight:700;
+  background:var(--accent); color:var(--accent-ink);
+  border-radius:6px; padding:3px 9px; white-space:nowrap;
+}
+.hudtitle{flex:1; min-width:0;}
+.hudtitle .name{font-family:var(--mono); font-size:.82rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.xpbar{height:7px; background:var(--raise); border:1px solid var(--line); border-radius:99px; overflow:hidden; margin-top:4px;}
+.xpbar .fill{height:100%; background:var(--accent); border-radius:99px; transition:width .5s cubic-bezier(.2,.8,.2,1);}
+.streak{font-family:var(--mono); font-size:.82rem; color:var(--dim); white-space:nowrap;}
+.streak b{color:var(--text);}
+
+/* ── quest map ───────────────────────────────────────────── */
+.hero{padding:26px 2px 8px;}
+.hero h1{font-size:1.5rem;}
+.hero .sub{color:var(--dim); margin-top:6px; max-width:56ch;}
+.nextup{
+  display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+  background:var(--accent); color:var(--accent-ink);
+  border-radius:var(--radius); padding:16px 18px; margin:18px 0 26px;
+  box-shadow:var(--shadow);
+}
+.nextup .go{font-family:var(--mono); font-weight:800; font-size:1.05rem;}
+.nextup .what{font-size:.88rem; opacity:.85;}
+.nextup .arrow{margin-left:auto; font-family:var(--mono); font-size:1.3rem; font-weight:800;}
+.map{position:relative; margin:8px 0 30px;}
+.map::before{
+  content:""; position:absolute; left:21px; top:18px; bottom:18px;
+  width:2px; background:var(--line);
+}
+.station{
+  position:relative; display:flex; gap:16px; align-items:flex-start;
+  width:100%; text-align:left; padding:11px 10px 11px 0; border-radius:var(--radius);
+}
+.station:active{background:var(--accent-soft);}
+.node{
+  position:relative; z-index:1; flex:none; width:44px; height:44px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-size:1.15rem;
+  background:var(--panel); border:2px solid var(--line);
+}
+.station.done .node{border-color:var(--good); background:var(--good-soft);}
+.station.next .node{border-color:var(--accent); background:var(--accent-soft); box-shadow:0 0 0 5px var(--accent-soft);}
+.st-body{flex:1; min-width:0; padding-top:1px;}
+.st-title{font-family:var(--mono); font-weight:700; font-size:.95rem;}
+.st-meta{font-size:.8rem; color:var(--dim); margin-top:2px;}
+.ticks{display:flex; gap:5px; margin-top:7px;}
+.tick{
+  font-family:var(--mono); font-size:.62rem; letter-spacing:.05em;
+  border:1px solid var(--line); color:var(--faint);
+  border-radius:4px; padding:1.5px 7px;
+}
+.tick.on{border-color:var(--good); color:var(--good); background:var(--good-soft);}
+.st-badge{flex:none; font-size:1.25rem; padding-top:8px;}
+
+/* ── generic panels & buttons ────────────────────────────── */
+.panel{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); padding:18px; margin:14px 0;
+}
+.term{
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); overflow:hidden; margin:14px 0;
+}
+.term .bar{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 14px; border-bottom:1px solid var(--line);
+  font-family:var(--mono); font-size:.72rem; color:var(--dim);
+  background:var(--raise);
+}
+.term .bar .dot{width:9px; height:9px; border-radius:50%; background:var(--line); flex:none;}
+.term .bar .path{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.term .bod{padding:18px;}
+.btn{
+  display:block; width:100%; text-align:center;
+  font-family:var(--mono); font-weight:700; font-size:.95rem;
+  border:1.5px solid var(--line); border-radius:var(--radius);
+  padding:14px 16px; margin:10px 0; background:var(--panel);
+  transition:transform .08s ease, background .15s;
+}
+.btn:active{transform:scale(.985);}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); box-shadow:var(--shadow);}
+.btn.ghost{color:var(--dim);}
+.btn[disabled]{opacity:.4; pointer-events:none;}
+.btnrow{display:flex; gap:10px;}
+.btnrow .btn{flex:1;}
+
+/* ── lesson player ───────────────────────────────────────── */
+.lesson-head{
+  position:sticky; top:0; z-index:30; background:var(--bg);
+  padding:calc(10px + env(safe-area-inset-top)) 0 10px;
+  border-bottom:1px solid var(--line); margin:0 -16px; padding-left:16px; padding-right:16px;
+}
+.lesson-head .inner{max-width:720px; margin:0 auto; display:flex; align-items:center; gap:12px;}
+.lesson-head .exit{font-family:var(--mono); font-size:1.05rem; color:var(--dim); padding:4px 10px 4px 0;}
+.dots{flex:1; display:flex; gap:5px; align-items:center;}
+.dot2{height:5px; flex:1; border-radius:99px; background:var(--raise); border:1px solid var(--line);}
+.dot2.on{background:var(--accent); border-color:var(--accent);}
+.dot2.now{background:var(--accent-soft); border-color:var(--accent);}
+.combo{
+  font-family:var(--mono); font-size:.75rem; font-weight:800; color:var(--warn);
+  white-space:nowrap;
+}
+.qtype{margin-top:20px;}
+.qtext{font-size:1.06rem; font-weight:600; margin:10px 0 4px; text-wrap:balance;}
+.qctx{
+  border-left:3px solid var(--accent); background:var(--accent-soft);
+  border-radius:0 6px 6px 0; padding:10px 14px; margin:12px 0; font-size:.93rem;
+}
+.choice{
+  display:flex; gap:12px; align-items:flex-start; width:100%; text-align:left;
+  background:var(--panel); border:1.5px solid var(--line); border-radius:var(--radius);
+  padding:13px 15px; margin:9px 0; font-size:.96rem; line-height:1.45;
+  transition:border-color .12s, background .12s;
+}
+.choice .key{
+  font-family:var(--mono); font-size:.75rem; font-weight:700; color:var(--dim);
+  border:1px solid var(--line); border-radius:4px; padding:1px 7px; margin-top:2px; flex:none;
+}
+.choice.sel{border-color:var(--accent); background:var(--accent-soft);}
+.choice.right{border-color:var(--good); background:var(--good-soft);}
+.choice.wrong{border-color:var(--bad); background:var(--bad-soft);}
+.choice.lock{pointer-events:none;}
+.choice.dimmed{opacity:.45; pointer-events:none;}
+
+/* flip card */
+.flip{perspective:1200px; margin:18px 0;}
+.flip .inner2{
+  position:relative; transform-style:preserve-3d; transition:transform .45s cubic-bezier(.3,.7,.3,1);
+  min-height:230px;
+}
+.flip.flipped .inner2{transform:rotateY(180deg);}
+.face{
+  position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  background:var(--panel); border:1.5px solid var(--line); border-radius:var(--radius);
+  padding:22px; display:flex; flex-direction:column; justify-content:center; gap:8px;
+}
+.face.back{transform:rotateY(180deg); border-color:var(--accent);}
+.face .cue{font-family:var(--mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--faint);}
+.face .big{font-size:1.12rem; font-weight:700; text-wrap:balance;}
+.face .bod2{font-size:.95rem;}
+:root[data-motion="off"] .flip .inner2{transition:none;}
+
+/* build (chips into slots) */
+.slotline{
+  font-family:var(--mono); font-size:.92rem; line-height:2.4;
+  background:var(--raise); border:1px solid var(--line); border-radius:var(--radius);
+  padding:14px 16px; margin:14px 0; word-break:break-word;
+}
+.slotline .lit{opacity:.85;}
+.slot{
+  display:inline-block; min-width:64px; text-align:center;
+  border:1.5px dashed var(--faint); border-radius:6px; padding:2px 10px; margin:2px 2px;
+  color:var(--dim); vertical-align:middle;
+}
+.slot.filled{border-style:solid; border-color:var(--accent); color:var(--text); background:var(--accent-soft);}
+.slot.hot{border-color:var(--accent);}
+.chips{display:flex; flex-wrap:wrap; gap:9px; margin:14px 0;}
+.chip{
+  font-family:var(--mono); font-size:.88rem; font-weight:600;
+  border:1.5px solid var(--line); background:var(--panel); border-radius:6px;
+  padding:9px 13px;
+}
+.chip.used{opacity:.28; pointer-events:none;}
+
+/* match pairs */
+.matchgrid{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin:14px 0;}
+.mcell{
+  border:1.5px solid var(--line); background:var(--panel); border-radius:var(--radius);
+  padding:12px 12px; font-size:.86rem; text-align:left; min-height:58px;
+  display:flex; align-items:center;
+}
+.mcell.mono2{font-family:var(--mono); font-weight:600;}
+.mcell.sel{border-color:var(--accent); background:var(--accent-soft);}
+.mcell.ok{border-color:var(--good); background:var(--good-soft); opacity:.65; pointer-events:none;}
+.mcell.no{border-color:var(--bad); background:var(--bad-soft);}
+
+/* feedback */
+.feedback{border-radius:var(--radius); padding:14px 16px; margin:16px 0; border:1.5px solid;}
+.feedback.good{border-color:var(--good); background:var(--good-soft);}
+.feedback.bad{border-color:var(--bad); background:var(--bad-soft);}
+.feedback .verdict{font-family:var(--mono); font-weight:800; font-size:.95rem;}
+.feedback.good .verdict{color:var(--good);}
+.feedback.bad .verdict{color:var(--bad);}
+.feedback .why{font-size:.92rem; margin-top:6px;}
+.xpfloat{font-family:var(--mono); font-weight:800; color:var(--warn); font-size:.9rem;}
+
+/* bottom action */
+.actionbar{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  background:linear-gradient(transparent, var(--bg) 32%);
+  padding:18px 16px calc(16px + env(safe-area-inset-bottom));
+}
+.actionbar .inner{max-width:720px; margin:0 auto;}
+
+/* tabs */
+#tabs{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  background:var(--panel); border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+#tabs .inner{max-width:720px; margin:0 auto; display:flex;}
+.tab{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:2px;
+  padding:9px 4px 8px; font-family:var(--mono); font-size:.64rem;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--dim);
+}
+.tab .ic{font-size:1.15rem;}
+.tab.on{color:var(--accent);}
+.tab .cnt{
+  position:absolute; transform:translate(14px,-4px);
+  background:var(--bad); color:#fff; font-size:.6rem; font-weight:800;
+  border-radius:99px; padding:0 5px;
+}
+
+/* badges */
+.badgegrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; margin:16px 0;}
+.badge{
+  background:var(--panel); border:1.5px solid var(--line); border-radius:var(--radius);
+  padding:14px 12px; text-align:center;
+}
+.badge .ic{font-size:1.7rem;}
+.badge .nm{font-family:var(--mono); font-size:.74rem; font-weight:700; margin-top:6px;}
+.badge .ds{font-size:.72rem; color:var(--dim); margin-top:3px;}
+.badge.off{opacity:.38; filter:grayscale(1);}
+.badge.got{border-color:var(--warn);}
+
+/* settings + onboarding */
+.setrow{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0; border-bottom:1px solid var(--line);}
+.setrow:last-child{border-bottom:none;}
+.setrow .t{font-weight:600; font-size:.95rem;}
+.setrow .d{font-size:.8rem; color:var(--dim); margin-top:2px;}
+.seg{display:flex; border:1.5px solid var(--line); border-radius:7px; overflow:hidden; flex:none;}
+.seg button{
+  font-family:var(--mono); font-size:.76rem; font-weight:700; color:var(--dim);
+  padding:8px 12px; border-right:1.5px solid var(--line);
+}
+.seg button:last-child{border-right:none;}
+.seg button.on{background:var(--accent); color:var(--accent-ink);}
+input.txt{
+  width:100%; font:inherit; font-family:var(--mono); color:var(--text);
+  background:var(--raise); border:1.5px solid var(--line); border-radius:var(--radius);
+  padding:12px 14px; outline:none;
+}
+input.txt:focus{border-color:var(--accent);}
+
+/* overlay (level up / boss result) */
+#overlay{
+  position:fixed; inset:0; z-index:60; display:none;
+  align-items:center; justify-content:center;
+  background:color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+  padding:24px;
+}
+#overlay.show{display:flex;}
+.ovcard{
+  width:100%; max-width:420px; background:var(--panel);
+  border:1.5px solid var(--accent); border-radius:12px; overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.ovcard .bod{padding:22px; text-align:center;}
+.ovcard .huge{font-size:2.6rem;}
+.ovcard h2{font-size:1.2rem; margin-top:8px;}
+.ovcard .sub2{color:var(--dim); font-size:.9rem; margin-top:6px;}
+.typeline{font-family:var(--mono); font-size:.8rem; color:var(--good); text-align:left; margin-top:4px;}
+
+#fx{position:fixed; inset:0; z-index:70; pointer-events:none;}
+
+/* focus visibility & motion */
+button:focus-visible{outline:2.5px solid var(--accent); outline-offset:2px;}
+@keyframes pulse{0%{transform:scale(1)}40%{transform:scale(1.035)}100%{transform:scale(1)}}
+.pulse{animation:pulse .35s ease;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.shake{animation:shake .3s ease;}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important; transition:none !important;}
+}
+:root[data-motion="off"] *{animation:none !important; transition:none !important;}
+.center{text-align:center;}
+.mt0{margin-top:0;} .dimtxt{color:var(--dim); font-size:.88rem;}
+.spacer{height:10px;}
+</style>
+<div id="hud"></div>
+<div id="wrap"><main id="app" aria-live="polite"></main></div>
+<nav id="tabs"></nav>
+<div id="overlay"></div>
+<canvas id="fx"></canvas>
+<script>
+"use strict";
+/* ═════════ helpers ═════════ */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const fmt=s=>esc(s).replace(/`([^`]+)`/g,"<code>$1</code>");
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const todayStr=()=>new Date().toISOString().slice(0,10);
+
+/* ═════════ curriculum data ═════════
+   Sources: this repo's modules 01–10 + official docs (code.claude.com).
+   To evolve the app: add cards/quiz items here, or a whole new module —
+   the engine, map, XP and badges pick it up automatically. */
+const MODULES=[
+
+/* ── 1 · First Contact ── */
+{slug:"first-contact",icon:"🖥️",title:"First Contact",folder:"README",mins:8,
+what:"What Claude Code is, how to start and steer a session, and the three commands you will use every single day.",
+cards:[
+ {f:"What is Claude Code?",b:"An AI agent that lives in your terminal. It reads your files, runs commands, and edits code — and it asks for your permission before changing anything. You talk to it in plain language."},
+ {f:"How do I start it?",b:"`claude` in a project folder starts a conversation. `claude \"fix the failing test\"` starts with a task. `claude -p \"question\"` prints one answer and exits — no conversation."},
+ {f:"`/clear` vs `/compact`",b:"`/clear` wipes the conversation and starts fresh. `/compact` keeps going but summarizes history to free up space. Rule of thumb: new task → `/clear`. Same task, long chat → `/compact`."},
+ {f:"Esc = the brake pedal",b:"One press of `Esc` stops Claude mid-answer. Work already done is kept — nothing is lost. Redirect it and continue. (Esc twice opens the rewind menu — that gets its own station.)"},
+ {f:"Permission modes",b:"`Shift+Tab` cycles how much freedom Claude has: default = asks before changes · acceptEdits = file edits auto-approved · plan = read-only, proposes a plan first."}
+],
+quiz:[
+ {t:"mcq",q:"Your chat is getting long but you are mid-task and still need the context. What do you run?",
+  c:["/compact — summarize history, keep going","/clear — wipe everything, start fresh","/exit, then restart","Nothing — it manages itself"],a:0,
+  why:"`/compact` compresses the conversation so you keep the important context. `/clear` erases it — use that when you switch to an unrelated task."},
+ {t:"mcq",q:"Pressing Esc while Claude is working throws away everything it did this turn.",
+  c:["False — completed work is kept","True — it all rolls back"],a:0,
+  why:"Esc only stops the current response. Files already edited and commands already run stay. It is a steering wheel, not an undo."},
+ {t:"build",q:"Build the command: ask a one-off question and exit (no interactive session).",
+  chips:["claude","-p","\"why does this test fail?\"","-c","--chat"],ans:["claude","-p","\"why does this test fail?\""],
+  why:"`-p` is print mode: one answer, then exit. Perfect for quick questions and for scripts."},
+ {t:"mcq",q:"Which permission mode auto-approves file edits but still checks with you before running commands?",
+  c:["acceptEdits","default","plan","bypassPermissions"],a:0,
+  why:"acceptEdits is the everyday sweet spot: Claude edits freely, but shell commands still need your OK."},
+ {t:"match",q:"Match each built-in command to what it does.",
+  pairs:[["/help","list available commands"],["/model","switch the AI model"],["/clear","reset the conversation"],["/compact","summarize to free context"]]},
+ {t:"mcq",q:"What does Shift+Tab do in a session?",
+  c:["Cycles permission modes (default → acceptEdits → plan)","Autocompletes file names","Switches the color theme","Sends the message"],a:0,
+  why:"Shift+Tab is the mode dial. Watch the label at the bottom of the terminal change as you press it."},
+ {t:"build",q:"Build the command: continue your most recent conversation.",
+  chips:["claude","-c","-r","--fresh"],ans:["claude","-c"],
+  why:"`-c` (continue) reopens your latest session. `-r` resumes a specific one by name."},
+ {t:"mcq",q:"Claude Code is best described as…",
+  c:["An agent that reads files, runs commands and edits code — with your permission","A code autocomplete plugin","A chatbot that only answers questions","A git GUI"],a:0,
+  why:"The 'agent' part is the point: it does not just suggest, it acts — under the permission rules you set."}
+],
+irl:{t:"Open your real work project in a terminal and run `claude`. Ask something true: \"explain how this repo is structured and where the tests live\". Interrupt it once with Esc, and try /compact when the chat grows."}},
+
+/* ── 2 · Slash Commands ── */
+{slug:"slash-commands",icon:"⚡",title:"Slash Commands",folder:"01-slash-commands",mins:10,
+what:"Turn any prompt you type twice into a one-word command — for you, or your whole team.",
+cards:[
+ {f:"A command is just a markdown file",b:"`/optimize` runs the prompt saved in `.claude/skills/optimize/SKILL.md` (the older `.claude/commands/optimize.md` style still works). The file content IS the prompt. No code needed."},
+ {f:"The 4 kinds of commands",b:"1 · built-in (`/help`, `/clear`, `/model`)  2 · your custom skills (`/optimize`)  3 · plugin commands  4 · MCP prompts (`/mcp__github__…`). Type `/` to see and filter all of them."},
+ {f:"Arguments: $ARGUMENTS, $1, $2",b:"`/fix-issue 123 high` → in the file, `$ARGUMENTS` is \"123 high\", `$1` is \"123\", `$2` is \"high\". Add `argument-hint` to the frontmatter so the menu shows what to pass."},
+ {f:"Live context: !`cmd` and @file",b:"A command file can pull in fresh data: !`git status` runs the command and inserts its output; `@src/utils.js` inserts that file. Your `/commit` command can read the actual diff."},
+ {f:"Project vs personal",b:"`.claude/skills/` inside a repo = shared with the team (commit it). `~/.claude/skills/` in your home folder = yours, available in every project. Same format, different reach."}
+],
+quiz:[
+ {t:"build",q:"Where does a custom /deploy skill live in this project (current style)?",sep:"/",
+  chips:[".claude","skills","deploy","SKILL.md","commands","deploy.md"],ans:[".claude","skills","deploy","SKILL.md"],
+  why:"Folder per skill, file named SKILL.md. The legacy `.claude/commands/deploy.md` also works — if both exist, the skill wins."},
+ {t:"mcq",q:"You run `/fix-issue 42 urgent`. Inside the command file, what is `$1`?",
+  c:["42","42 urgent","urgent","(empty)"],a:0,
+  why:"`$1` is the first word only. The whole string \"42 urgent\" is `$ARGUMENTS`."},
+ {t:"mcq",q:"Which frontmatter key limits which tools the command may use?",
+  c:["allowed-tools","tools-list","permissions","safe-mode"],a:0,
+  why:"Example: `allowed-tools: Bash(git *), Read` lets a /commit command run git and read files — nothing else."},
+ {t:"mcq",q:"A project skill with the same name as a built-in command overrides the built-in.",
+  c:["True — the skill shadows it","False — built-ins always win"],a:0,
+  why:"True — which is why the repo recommends suffixes like `review-specialist` instead of reusing built-in names."},
+ {t:"match",q:"Match the syntax to what it does inside a command file.",
+  pairs:[["$ARGUMENTS","everything typed after the command"],["argument-hint","usage hint shown in the / menu"],["!`git status`","run shell, insert the output"],["@path/file","insert that file's content"]]},
+ {t:"mcq",ctx:"Your whole team keeps hand-writing the same PR-description prompt, slightly differently every time.",
+  q:"Best move?",
+  c:["Create a /pr skill in .claude/skills/ and commit it to the repo","Everyone keeps a personal note on their desktop","Put it in ~/.claude/skills/ so only you have it","Pin the prompt in Slack"],a:0,
+  why:"Project-level skills ship with the repo — everyone gets the same command for free after `git pull`."},
+ {t:"mcq",q:"Your brand-new command does not appear in the / menu. First thing to try?",
+  c:["/reload-skills (or restart the session)","Reinstall Claude Code","Rename the file to uppercase","Move it to /tmp"],a:0,
+  why:"Skills are discovered at session start. `/reload-skills` re-scans without restarting."},
+ {t:"mcq",q:"`disable-model-invocation: true` in a skill's frontmatter means…",
+  c:["Only YOU can trigger it — Claude never auto-runs it (perfect for /deploy)","Claude can use it but you cannot","The skill is disabled entirely","It runs on every prompt"],a:0,
+  why:"Use it for commands with side effects (deploys, pushes). Claude should never fire those on its own."}
+],
+irl:{t:"Create `.claude/skills/commit/SKILL.md` in a real project with a prompt that reads !`git diff --staged` and writes a conventional commit message. Then type /commit. You just automated a daily chore."}},
+
+/* ── 3 · Memory & CLAUDE.md ── */
+{slug:"memory",icon:"🧠",title:"Memory & CLAUDE.md",folder:"02-memory",mins:10,
+what:"Stop repeating yourself: give Claude a permanent briefing it reads at the start of every session.",
+cards:[
+ {f:"Why CLAUDE.md exists",b:"Claude starts every session with amnesia. CLAUDE.md is the note it reads first, every time: your stack, your commands, your rules. Write it once — it applies forever."},
+ {f:"The three locations that matter",b:"`~/.claude/CLAUDE.md` → you, in every project. `./CLAUDE.md` → this project, whole team (commit it). `./CLAUDE.local.md` → this project, just you (add to .gitignore)."},
+ {f:"/init and /memory",b:"`/init` scans a project and generates a starter CLAUDE.md. `/memory` opens your memory files in an editor. Habit: every time you repeat an instruction twice, move it into memory."},
+ {f:"Imports with @",b:"`@docs/testing.md` inside CLAUDE.md pulls that file in at launch. Great for organization — but imported files still load and still cost context. Keep the total lean (aim under ~200 lines)."},
+ {f:"Memory guides. Hooks enforce.",b:"CLAUDE.md is advice — followed, but not physically guaranteed. When a rule must NEVER break (block dangerous commands, always run the formatter), that is a hook. Hooks get their own station."}
+],
+quiz:[
+ {t:"mcq",q:"You want \"answer concisely, no emojis\" to apply in every project on your machine. Where does it go?",
+  c:["~/.claude/CLAUDE.md","./CLAUDE.md in each project","./CLAUDE.local.md","A sticky note"],a:0,
+  why:"The user-level file in your home directory follows you everywhere. Project files are for project facts."},
+ {t:"mcq",ctx:"Claude keeps running `npm test`, but your project actually uses `pnpm vitest`.",
+  q:"How do you fix this once, forever?",
+  c:["Add the correct command to the project's CLAUDE.md","Correct it at the start of each session","Create an npm alias","Rename your scripts to match"],a:0,
+  why:"That is exactly what project memory is for: 'Tests: run `pnpm vitest`'. Every future session gets it right."},
+ {t:"mcq",q:"What is CLAUDE.local.md for?",
+  c:["Project-specific preferences that are yours alone — and gitignored","The team's shared rules","Claude's autosaved notes","A backup of CLAUDE.md"],a:0,
+  why:"Example: 'use my staging DB at localhost:5433'. True for you, useless (or wrong) for teammates — keep it out of git."},
+ {t:"mcq",q:"Splitting CLAUDE.md into several files with @imports reduces token usage.",
+  c:["False — imported files still load at launch","True — imports load lazily"],a:0,
+  why:"Imports are for organization, not savings. Everything referenced is read at session start, so total size is what counts."},
+ {t:"build",q:"Generate a starter CLAUDE.md for a project that has none.",
+  chips:["/init","/memory","/new","/setup"],ans:["/init"],
+  why:"`/init` analyzes the repo (stack, commands, layout) and writes a first draft you then refine."},
+ {t:"match",q:"Match each memory file to its audience.",
+  pairs:[["~/.claude/CLAUDE.md","you, in all projects"],["./CLAUDE.md","the team, this project"],["./CLAUDE.local.md","you only, this project"],[".claude/rules/*.md","loads only for matching file paths"]]},
+ {t:"mcq",q:"A rule written in CLAUDE.md is guaranteed to be enforced.",
+  c:["False — it is strong guidance; hooks are the guarantee","True — it is a hard constraint"],a:0,
+  why:"Memory shapes behavior; hooks enforce it with actual code. Critical rules deserve both."},
+ {t:"mcq",q:"Which CLAUDE.md works best?",
+  c:["Short and specific — key commands, hard rules, ~under 200 lines","Exhaustive — every detail of the codebase, 2000 lines","Empty — Claude figures it out","Only emojis"],a:0,
+  why:"Long memory dilutes itself. The repo's guidance: concise, concrete, no secrets, no duplication."}
+],
+irl:{t:"Run /init on your main work project. Then add the 3 instructions you repeat most often (test command, code style, what NOT to touch). Commit it — your whole team just leveled up."}},
+
+/* ── 4 · Checkpoints & Rewind ── */
+{slug:"checkpoints",icon:"⏪",title:"Checkpoints & Rewind",folder:"08-checkpoints",mins:7,
+what:"Claude Code snapshots your work before every prompt. Learn to rewind — and become fearless.",
+cards:[
+ {f:"Your automatic safety net",b:"Before every prompt you send, Claude Code checkpoints your files and the conversation. Automatically. Break something? Rewind. Experiments become cheap — so attempt the bold refactor."},
+ {f:"Esc Esc → the rewind menu",b:"Press `Esc` twice (or type `/rewind`) to open the checkpoint list. Pick a point in time, then choose exactly what to restore."},
+ {f:"Restore what, exactly?",b:"Three flavors: code + conversation (full rollback) · conversation only (keep the files, redo the chat) · code only (keep the chat, undo the files)."},
+ {f:"What rewind canNOT undo",b:"Changes made by shell commands (`rm`, `mv`, database writes) and edits made in your own editor are not tracked. Checkpoints are a seatbelt — git remains the source of truth."},
+ {f:"The experiment loop",b:"Try approach A → Esc Esc → restore code → try approach B → compare. This loop is the single biggest confidence unlock in Claude Code."}
+],
+quiz:[
+ {t:"mcq",q:"How do you open the rewind menu?",
+  c:["Esc Esc (or /rewind)","Ctrl+Z","/undo-all","Close and reopen the terminal"],a:0,
+  why:"Double-Esc is the muscle memory to build. /rewind and /checkpoint are the same menu."},
+ {t:"mcq",q:"When are checkpoints created?",
+  c:["Automatically, before every user prompt","Only when you ask for one","Every 10 minutes","On git commit"],a:0,
+  why:"Zero effort required — every prompt you send is a restore point, and they persist across sessions."},
+ {t:"mcq",ctx:"Claude's refactor broke the build — but the conversation contains analysis you want to keep.",
+  q:"Which restore do you pick?",
+  c:["Restore code only — files roll back, chat stays","Restore code + conversation","Restore conversation only","Start a new session"],a:0,
+  why:"'Code only' rolls back the files but keeps the discussion, so Claude still remembers what it learned."},
+ {t:"mcq",q:"Checkpoints make git unnecessary.",
+  c:["False — bash file changes and external edits are not tracked; git stays essential","True — same thing"],a:0,
+  why:"Rewind covers Claude's own file edits. `rm`/`mv` via shell, DB changes and your editor's saves are outside it."},
+ {t:"mcq",q:"Which of these can rewind NOT bring back?",
+  c:["A file deleted with `rm` in a bash command","A file Claude rewrote with its edit tool","The conversation history","Your original prompt text"],a:0,
+  why:"Shell side effects are invisible to checkpointing. That is exactly why risky bash gets guarded by permissions and hooks."},
+ {t:"match",q:"Match each rewind option to its effect.",
+  pairs:[["code + conversation","full rollback of both"],["conversation only","keep files, redo the chat"],["code only","keep chat, undo the files"],["summarize from here","compress context, files untouched"]]},
+ {t:"mcq",q:"Best real-world use of checkpoints?",
+  c:["A/B-test two approaches: try A, rewind, try B, compare","Replace your git history","Store secrets","Speed up the terminal"],a:0,
+  why:"Cheap rollback means you can genuinely explore. Try the risky design first — you can always come back."}
+],
+irl:{t:"In a scratch branch of a real project, ask Claude for an ambitious refactor. Let it finish, look at it, then Esc Esc → restore code only. You just A/B-tested an architecture for free."}},
+
+/* ── 5 · CLI Essentials ── */
+{slug:"cli",icon:"🧰",title:"CLI Essentials",folder:"10-cli",mins:8,
+what:"Drive Claude Code from the command line: one-shot answers, resuming sessions, piping in logs.",
+cards:[
+ {f:"One tool, three modes",b:"`claude` → interactive session. `claude \"do the thing\"` → session that starts with a task. `claude -p \"question\"` → print one answer and exit. The third one is the gateway to automation."},
+ {f:"Resume anything",b:"`claude -c` continues your most recent conversation. `claude -r \"auth-refactor\"` resumes a specific named session. Inside a session, `/resume` shows a picker and `/rename` names the current one."},
+ {f:"Pipe the world in",b:"`cat error.log | claude -p \"what broke?\"` — anything on stdin becomes context: logs, diffs, JSON, test output. This one habit replaces a lot of copy-paste."},
+ {f:"Pick your model",b:"`claude --model opus` at launch, or `/model` mid-session. Heavier models reason deeper; lighter ones answer faster and cheaper. Match the model to the difficulty of the task."},
+ {f:"Stay sharp",b:"`claude update` updates the CLI. New features land constantly — the changelog is genuinely worth skimming. (`claude --version` tells you where you are.)"}
+],
+quiz:[
+ {t:"build",q:"Build the pipeline: feed a log file to Claude and get a one-shot summary.",
+  chips:["cat error.log","|","claude","-p","\"summarize the errors\"","-c"],ans:["cat error.log","|","claude","-p","\"summarize the errors\""],
+  why:"stdin becomes context, `-p` prints the answer and exits. Works in scripts, cron jobs, CI — anywhere."},
+ {t:"mcq",q:"You want to reopen yesterday's session that you named \"auth-refactor\". Which command?",
+  c:["claude -r \"auth-refactor\"","claude -c","claude --open auth-refactor","claude -p \"auth-refactor\""],a:0,
+  why:"`-r` resumes a session by name/id. `-c` grabs whichever was most recent — no choosing."},
+ {t:"mcq",q:"What does the `-p` flag change?",
+  c:["Non-interactive: print the answer, then exit","Runs in private mode","Uses a faster model","Enables plan mode"],a:0,
+  why:"Print mode is the scripting mode: input in, answer out, exit code back. The whole Automation station builds on it."},
+ {t:"mcq",q:"CLI flags like --model also work together with -p.",
+  c:["True — flags compose with print mode","False — -p ignores other flags"],a:0,
+  why:"They compose: `claude -p --model haiku \"quick triage\"` is a fast, cheap one-liner."},
+ {t:"match",q:"Match the command to what it does.",
+  pairs:[["claude","interactive session"],["claude -p","one answer, then exit"],["claude -c","continue the latest session"],["claude update","update the CLI itself"]]},
+ {t:"mcq",q:"Mid-session, you realize the task is harder than expected and want a stronger model. You…",
+  c:["Type /model and switch — the conversation continues","Must quit and restart","Cannot change models","Type /upgrade"],a:0,
+  why:"`/model` switches in place, keeping your context. No restart needed."},
+ {t:"mcq",ctx:"You are SSH'd into a server; a deploy just failed and the log is 4000 lines.",
+  q:"Fastest triage?",
+  c:["tail -200 deploy.log | claude -p \"most likely root cause?\"","Copy the log into a Slack message to a teammate","Read all 4000 lines yourself","Restart the deploy and hope"],a:0,
+  why:"Pipe + print mode gives you a first diagnosis in seconds, right where the problem lives."}
+],
+irl:{t:"Next time a build or test run fails at work, pipe the log straight in: `npm test 2>&1 | claude -p \"why did this fail?\"`. Notice how it changes your debugging reflex."}},
+
+/* ── 6 · Skills ── */
+{slug:"skills",icon:"📜",title:"Skills",folder:"03-skills",mins:11,
+what:"Package expertise into folders Claude loads only when relevant — huge knowledge, near-zero context cost.",
+cards:[
+ {f:"A skill is expertise on demand",b:"A folder with a `SKILL.md` inside: instructions, examples, even scripts. Claude auto-loads it when the task matches — your code-review standards, your deploy runbook, your brand voice."},
+ {f:"Progressive disclosure (the magic)",b:"Level 1: only name + description are always in context (~100 tokens). Level 2: the SKILL.md body loads when triggered. Level 3: bundled files load only if needed. You can have 50 skills for the price of a paragraph."},
+ {f:"The description IS the trigger",b:"Claude decides to load a skill by reading its `description`. Write WHAT it does and WHEN to use it: \"Reviews SQL migrations for unsafe operations. Use when editing files in migrations/\". Vague description = skill never fires."},
+ {f:"Control who can invoke",b:"`disable-model-invocation: true` → only you can run it (deploys, anything with side effects). `user-invocable: false` → hidden from the / menu, Claude-only background knowledge."},
+ {f:"Skills can carry tools",b:"Ship `templates/`, `references/`, `scripts/` next to SKILL.md. A codebase-visualizer skill can include a Python script Claude executes — the skill teaches Claude HOW and WHEN to run it."}
+],
+quiz:[
+ {t:"build",q:"Where does a project's code-review skill live?",sep:"/",
+  chips:[".claude","skills","code-review","SKILL.md","skill.txt","agents"],ans:[".claude","skills","code-review","SKILL.md"],
+  why:"One folder per skill, with SKILL.md inside. Extra files (templates, scripts) sit next to it."},
+ {t:"mcq",q:"Your skill exists but Claude never uses it on its own. Most likely cause?",
+  c:["The description doesn't say when to use it","The file is too long","Skills can't auto-trigger","You need to restart your computer"],a:0,
+  why:"Auto-invocation is driven purely by the description. Make it name concrete triggers: file types, folders, task words."},
+ {t:"mcq",q:"With 20 skills installed, what sits in context at session start?",
+  c:["Just each skill's name + description (~100 tokens each)","All 20 full SKILL.md files","Nothing until you type /","Every bundled file too"],a:0,
+  why:"That's progressive disclosure: metadata always, body on trigger, bundled files on demand. Knowledge scales, cost doesn't."},
+ {t:"mcq",ctx:"You wrote a brand-voice guide. Claude should apply it automatically when writing docs — but it makes no sense as a command people run.",
+  q:"Which frontmatter?",
+  c:["user-invocable: false","disable-model-invocation: true","hidden: true","model: haiku"],a:0,
+  why:"`user-invocable: false` removes it from the / menu but leaves auto-triggering on. The mirror image of a deploy command."},
+ {t:"mcq",ctx:"Your /deploy skill pushes to production.",
+  q:"Which line makes sure Claude never runs it by itself?",
+  c:["disable-model-invocation: true","user-invocable: false","allowed-tools: none","description: \"never use\""],a:0,
+  why:"Side-effect commands should be human-triggered only. This flag is exactly that guarantee."},
+ {t:"match",q:"Match each disclosure level to its cost.",
+  pairs:[["Level 1 — metadata","always loaded, ~100 tokens"],["Level 2 — SKILL.md body","loads when the skill triggers"],["Level 3 — bundled files","read only if actually needed"],["description field","decides WHEN it triggers"]]},
+ {t:"mcq",q:"How do skills relate to custom slash commands?",
+  c:["They merged — a skill is invocable as /name AND can auto-trigger","They are unrelated features","Commands replaced skills","Skills are paid-only"],a:0,
+  why:"One system now: `.claude/skills/<name>/SKILL.md` gives you both the manual /command and the automatic expertise."},
+ {t:"mcq",q:"Installing a skill from a random internet repo is harmless.",
+  c:["False — skills can include scripts and instructions Claude will execute","True — skills are just text"],a:0,
+  why:"Treat skills like npm packages: real capability, real risk. Install from sources you trust, read before enabling."}
+],
+irl:{t:"Write a code-review skill for YOUR stack: `.claude/skills/review-standards/SKILL.md` listing your team's top 5 review rules (naming, error handling, tests). Description: \"Code review standards. Use when reviewing or writing code in this repo.\" Watch it kick in on the next review."}},
+
+/* ── 7 · Hooks ── */
+{slug:"hooks",icon:"🪝",title:"Hooks",folder:"06-hooks",mins:11,
+what:"Memory suggests, hooks guarantee: run your own code at fixed moments in Claude's lifecycle.",
+cards:[
+ {f:"Hooks = guarantees",b:"A hook is a shell command that Claude Code itself executes at a specific event. Not advice, not a prompt — actual code that always runs. Formatting, guardrails, logging: things that must happen 100% of the time."},
+ {f:"The events to know first",b:"`PreToolUse` — before a tool runs (can block it) · `PostToolUse` — right after · `UserPromptSubmit` — when you send a prompt · `SessionStart` · `Stop` — when Claude finishes responding."},
+ {f:"Anatomy of a hook",b:"In `settings.json`: event name → matcher → command. A matcher like \"Write|Edit\" (regex) means: only fire for those tools. Empty matcher = fire every time."},
+ {f:"Exit code 2 = veto",b:"A `PreToolUse` hook that exits with code 2 BLOCKS the action, and its stderr message is shown to Claude — which reads it and adapts. This is how you make `rm -rf` physically impossible."},
+ {f:"Three classic recipes",b:"1 · auto-format: PostToolUse on Write|Edit → run prettier/black. 2 · guardrail: PreToolUse on Bash → block dangerous commands. 3 · audit: log every session. Caution: hooks run arbitrary shell with YOUR permissions — only install ones you've read."}
+],
+quiz:[
+ {t:"mcq",q:"You want prettier to run automatically after every file Claude edits. Which event + matcher?",
+  c:["PostToolUse with matcher \"Write|Edit\"","PreToolUse with matcher \"Bash\"","SessionStart, no matcher","Stop with matcher \"*\""],a:0,
+  why:"After the edit happens (Post), only for editing tools (Write|Edit). The file is formatted before you ever see it."},
+ {t:"mcq",q:"A PreToolUse hook exits with code 2. What happens?",
+  c:["The tool call is blocked and Claude sees the stderr message","Nothing — 2 means success","Claude Code crashes","The hook retries"],a:0,
+  why:"Exit 2 is the veto. Claude reads why it was blocked and changes course — a feedback loop, not just a wall."},
+ {t:"mcq",q:"\"Always run the tests after changes\" — written in CLAUDE.md vs implemented as a hook. Which one is guaranteed?",
+  c:["The hook — memory is guidance, hooks are code","CLAUDE.md — memory is binding","Both equally","Neither"],a:0,
+  why:"The repo's rule of thumb: memory for how Claude should think, hooks for what must always happen."},
+ {t:"mcq",q:"Where do hooks live?",
+  c:["settings.json (user, project, or local) under \"hooks\"","CLAUDE.md","A .hooks file in the repo root","package.json"],a:0,
+  why:"`~/.claude/settings.json` for personal hooks, `.claude/settings.json` in the repo for team hooks."},
+ {t:"match",q:"Match each event to its moment.",
+  pairs:[["PreToolUse","before a tool runs — can block"],["PostToolUse","right after a tool succeeds"],["UserPromptSubmit","when you send a message"],["SessionStart","when a session begins"]]},
+ {t:"mcq",ctx:"Compliance asks: \"prove no secrets are ever written into code files.\"",
+  q:"Your move?",
+  c:["PostToolUse hook on Write|Edit running a secret-scanner on the changed file","Add \"please avoid secrets\" to CLAUDE.md","Ask Claude nicely each session","Scan manually every Friday"],a:0,
+  why:"Deterministic requirement → deterministic mechanism. The scanner runs on every single edit, no exceptions."},
+ {t:"mcq",q:"What does the matcher \"Write|Edit\" mean?",
+  c:["Fire for the Write or Edit tools (regex alternation)","Fire when writing to a file called Edit","Write first, then edit","It's invalid syntax"],a:0,
+  why:"Matchers are patterns over tool names. \"*\" or \"\" = all tools; \"mcp__github__.*\" targets MCP tools."},
+ {t:"mcq",q:"A hook script from a random gist is safe to paste in, since Claude reviews hooks before running them.",
+  c:["False — hooks execute with your permissions, unreviewed. Read them yourself","True — hooks are sandboxed"],a:0,
+  why:"Hooks are YOUR automation, running as you. Treat them with the same suspicion as any script from the internet."}
+],
+irl:{t:"Add one auto-format hook to your main project: PostToolUse, matcher \"Write|Edit\", command running your formatter. One config block — and misformatted AI edits disappear from your diffs forever."}},
+
+/* ── 8 · MCP — Connect Everything ── */
+{slug:"mcp",icon:"🔌",title:"MCP: Connect Everything",folder:"05-mcp",mins:11,
+what:"The Model Context Protocol plugs Claude into live systems: GitHub, databases, Slack, browsers.",
+cards:[
+ {f:"MCP is Claude's USB port",b:"An MCP server gives Claude new tools that touch the outside world: list your GitHub PRs, query your Postgres, post to Slack, drive a browser. Memory is static; MCP is live."},
+ {f:"Adding a server",b:"`claude mcp add --transport http notion https://mcp.notion.com/mcp` — done. Local servers run as processes via stdio. `/mcp` inside a session shows what's connected, and handles OAuth logins."},
+ {f:"Three scopes",b:"local → just you, this machine (default). project → written to `.mcp.json`, committed, whole team gets it. user → you, across all your projects. Same rule as skills: team things go in the repo."},
+ {f:"Secrets never in git",b:"`.mcp.json` supports `${GITHUB_TOKEN}` env expansion. The config is committed; the token stays in each person's environment. Hardcoding a token in that file is the classic MCP mistake."},
+ {f:"Memory vs MCP",b:"CLAUDE.md tells Claude your DB schema uses snake_case (a fact). MCP lets Claude run `SELECT count(*) FROM users` right now (an action). You will constantly combine both."}
+],
+quiz:[
+ {t:"mcq",q:"Your whole team should get the GitHub MCP server automatically after git pull. Which scope?",
+  c:["project — it lands in .mcp.json, committed to the repo","local — everyone configures it themselves","user — it follows you around","email — send instructions"],a:0,
+  why:"Project scope turns team setup into `git pull`. First use asks each person to approve it — a sane safety check."},
+ {t:"build",q:"Add Notion as an HTTP MCP server.",
+  chips:["claude","mcp","add","--transport","http","notion","https://mcp.notion.com/mcp","install"],
+  ans:["claude","mcp","add","--transport","http","notion","https://mcp.notion.com/mcp"],
+  why:"`claude mcp add --transport http <name> <url>`. HTTP is the recommended transport; stdio is for local processes."},
+ {t:"mcq",ctx:"A teammate pastes their GitHub token directly into .mcp.json and commits it.",
+  q:"What should it have been?",
+  c:["\"${GITHUB_TOKEN}\" — expanded from each person's environment","A shorter token","The token base64-encoded","Nothing wrong with it"],a:0,
+  why:"Config in git, secrets in the environment. Env expansion exists exactly so the two never mix. (Also: rotate that token.)"},
+ {t:"mcq",q:"What does /mcp show you?",
+  c:["Connected servers, their tools, and auth status","Your MCP bill","A tutorial","Available models"],a:0,
+  why:"It's also your debug tool: a server listed with 0 tools usually means misconfiguration or failed auth."},
+ {t:"match",q:"Match each scope or transport to its meaning.",
+  pairs:[["local scope","just you, this machine"],["project scope",".mcp.json — whole team via git"],["user scope","you, across all projects"],["stdio transport","runs a local process as the server"]]},
+ {t:"mcq",ctx:"You want a morning briefing: open PRs from GitHub + yesterday's signup count from the production DB.",
+  q:"What makes this possible?",
+  c:["MCP servers for GitHub and the database — live queries","A very detailed CLAUDE.md","Copy-pasting both into the chat each morning","It isn't possible"],a:0,
+  why:"Live data needs live connections. Bonus: wrap the briefing prompt in a /standup skill and it's one keystroke."},
+ {t:"mcq",q:"A server appears in /mcp but exposes 0 tools. Most likely?",
+  c:["Misconfigured or not authenticated — check the URL/token","Working as intended","MCP is down globally","You need a paid plan"],a:0,
+  why:"Zero tools = the handshake failed somewhere. URL, transport, and auth are the three usual suspects."}
+],
+irl:{t:"Add your team's GitHub MCP server, then ask: \"which of my open PRs have unresolved review comments?\" — the moment MCP clicks is the moment Claude answers with YOUR real data."}},
+
+/* ── 9 · Subagents ── */
+{slug:"subagents",icon:"🤖",title:"Subagents",folder:"04-subagents",mins:10,
+what:"Delegate to specialist Claudes with their own context, instructions and restricted tools.",
+cards:[
+ {f:"Delegation, clean hands",b:"A subagent is a separate Claude: its own context window, its own system prompt, its own (restricted) tools. It does the legwork; only the distilled result returns to your conversation."},
+ {f:"Why it matters",b:"Three wins: your main context stays clean (a giant search doesn't flood it) · specialists behave consistently (the reviewer always reviews the same way) · work can run in parallel."},
+ {f:"Anatomy of an agent",b:"`.claude/agents/code-reviewer.md` — frontmatter: `name`, `description`, `tools`, `model`. The markdown body below is its system prompt: who it is, how it works, what it must output."},
+ {f:"Auto-delegation",b:"Claude picks a subagent by reading its description. Sharp descriptions win: \"Reviews code for security issues. Use PROACTIVELY after any code change.\" Vague ones never get chosen."},
+ {f:"Built-ins + /agents",b:"You already have some: Explore (fast read-only codebase search), Plan (architecture), general-purpose. `/agents` lists, creates and edits agents interactively."}
+],
+quiz:[
+ {t:"mcq",q:"The core benefit of running a big codebase search in a subagent?",
+  c:["Its context stays separate — 100 files read, only the answer returns","It's always faster","It uses no tokens at all","It can bypass permissions"],a:0,
+  why:"Context isolation is the superpower: the mess stays in the subagent, your main conversation keeps its focus."},
+ {t:"build",q:"Where does a project-level code-reviewer agent live?",sep:"/",
+  chips:[".claude","agents","code-reviewer.md","skills","SKILL.md"],ans:[".claude","agents","code-reviewer.md"],
+  why:"One markdown file per agent under `.claude/agents/` (or `~/.claude/agents/` for personal ones)."},
+ {t:"mcq",q:"How do you make Claude delegate to your agent automatically at the right moments?",
+  c:["Write a precise description — e.g. \"use PROACTIVELY after code changes\"","Set priority: high","Name the file URGENT.md","You can't influence it"],a:0,
+  why:"Delegation is description-driven, exactly like skill triggering. Say what it does AND when to use it."},
+ {t:"mcq",ctx:"You're creating a security-reviewer agent. It must be able to read and search code — and absolutely never modify it.",
+  q:"Which frontmatter?",
+  c:["tools: Read, Grep, Glob","tools: all","model: haiku","description: \"read only please\""],a:0,
+  why:"Tool restriction is a hard guarantee, not a request. No Edit/Write/Bash in the list = physically cannot change files."},
+ {t:"mcq",q:"A subagent sees your whole conversation so far.",
+  c:["False — it starts fresh with just its task; only its result comes back","True — full shared context"],a:0,
+  why:"Fresh context per subagent is the design: it's what keeps your main window clean and the specialist unbiased."},
+ {t:"match",q:"Match each part of an agent file to its role.",
+  pairs:[["description","when Claude delegates to it"],["tools","what it's allowed to use"],["model","which brain it runs on"],["markdown body","its system prompt"]]},
+ {t:"mcq",ctx:"\"Where is rate limiting implemented?\" — in a 400k-line monorepo.",
+  q:"Best move?",
+  c:["Send the Explore agent to search and report back","Read files one by one in the main chat","Grep and paste 500 results into the conversation","Ask Slack"],a:0,
+  why:"Read-heavy, answer-light tasks are the textbook subagent case. You get the conclusion, not the file dumps."},
+ {t:"mcq",q:"When is a subagent the WRONG tool?",
+  c:["A trivial one-step task — delegation latency beats any benefit","A parallel research sweep","An isolated risky experiment","A consistent, repeatable review"],a:0,
+  why:"Spinning up a specialist to rename one variable is pure overhead. Match the machinery to the job."}
+],
+irl:{t:"Create `.claude/agents/reviewer.md` with tools: Read, Grep and a body describing YOUR team's review checklist. Then finish a change and ask: \"have the reviewer look at my diff\"."}},
+
+/* ── 10 · Advanced Powers ── */
+{slug:"advanced",icon:"🧭",title:"Advanced Powers",folder:"09-advanced-features",mins:10,
+what:"Plan mode, extended thinking, background tasks and parallel worktrees — the power-user layer.",
+cards:[
+ {f:"Plan mode: measure twice",b:"Shift+Tab into plan mode (or `claude --permission-mode plan`): Claude researches and proposes a plan but cannot write anything — every file write is blocked. You review, adjust, approve. THEN it builds."},
+ {f:"Extended thinking",b:"Hard problem? Let Claude think longer before answering: toggle with `Alt+T`, or raise the effort level via `/effort`. Deep reasoning for a gnarly race condition — not for renaming a variable."},
+ {f:"Background tasks",b:"A 10-minute test suite shouldn't freeze your conversation. Long commands can run in the background while you keep working; Claude gets notified when they finish and reacts."},
+ {f:"Worktrees: parallel Claudes",b:"`claude -w feature-x` opens a session in an isolated git worktree on its own branch — its own copy of the files. Run two features side by side with zero conflicts."},
+ {f:"Session hygiene",b:"`/rename` names your session so `-r` can find it later. `/fork` branches the conversation to explore an alternative. `opusplan` model alias: a strong model plans, a faster one executes."}
+],
+quiz:[
+ {t:"mcq",q:"In plan mode, Claude…",
+  c:["Can read and research, but every file write is blocked until you approve","Works faster","Can edit but not run commands","Uses a different model automatically"],a:0,
+  why:"Even with edit permissions configured, plan mode blocks writes. Research → plan → your approval → execution."},
+ {t:"mcq",q:"Which task most deserves plan mode?",
+  c:["Migrating the auth system across 30 files","Fixing a typo in a comment","Renaming one function","Asking what a file does"],a:0,
+  why:"Plan mode earns its overhead on large, risky, multi-file changes — agree on the approach before any code moves."},
+ {t:"mcq",ctx:"You want to build feature A and fix bug B in the same repo, at the same time, without the changes colliding.",
+  q:"How?",
+  c:["Two sessions with claude -w feature-a and claude -w bug-b","One session doing both at once","Copy the repo folder manually","Impossible"],a:0,
+  why:"Each -w session gets an isolated worktree on its own branch. Parallel Claudes, no stepping on each other."},
+ {t:"build",q:"Open a session in an isolated worktree called hotfix.",
+  chips:["claude","-w","hotfix","-p","--branch"],ans:["claude","-w","hotfix"],
+  why:"`-w <name>` creates the worktree and branch, and drops the session inside it."},
+ {t:"mcq",q:"Extended thinking / higher effort is best spent on…",
+  c:["A subtle concurrency bug or architecture decision","Every single prompt","Formatting fixes","Listing files"],a:0,
+  why:"Thinking time is a resource. Spend it where reasoning depth changes the outcome; keep quick tasks quick."},
+ {t:"match",q:"Match the shortcut to its power.",
+  pairs:[["Shift+Tab","cycle permission modes"],["Esc Esc","open the rewind menu"],["Alt+T","toggle extended thinking"],["/fork","branch the conversation"]]},
+ {t:"mcq",q:"What's the idea behind the opusplan model alias?",
+  c:["A strong model writes the plan, a faster model executes it","Two models argue","It's a paid tier","Plan mode but slower"],a:0,
+  why:"Depth where it matters (planning), speed where it doesn't (mechanical execution). Same philosophy as effort levels."},
+ {t:"mcq",ctx:"Your integration tests take 12 minutes and you have three more things to discuss with Claude.",
+  q:"Best flow?",
+  c:["Run the tests as a background task and keep working — Claude reacts when they finish","Stare at the spinner","Skip the tests","Open a new terminal and forget about it"],a:0,
+  why:"Background tasks decouple waiting from working. The session stays interactive and picks up the result automatically."}
+],
+irl:{t:"Next multi-file change at work: Shift+Tab into plan mode first. Read the plan, cut what's wrong, approve. Compare the result with your usual just-go approach — most people never go back."}},
+
+/* ── 11 · Plugins ── */
+{slug:"plugins",icon:"📦",title:"Plugins",folder:"07-plugins",mins:9,
+what:"Bundle commands, agents, hooks and MCP servers into one installable package your whole team shares.",
+cards:[
+ {f:"Plugins bundle everything",b:"Everything you've built so far — slash commands, subagents, skills, hooks, MCP servers — can ship together as ONE installable plugin. Your team's whole Claude setup, one command."},
+ {f:"Anatomy",b:"A manifest at `.claude-plugin/plugin.json` (name, version, description) plus regular folders: `commands/`, `agents/`, `skills/`, `hooks/hooks.json`, `.mcp.json`. Nothing new to learn — it's the same files, packaged."},
+ {f:"Install & marketplaces",b:"`/plugin install pr-review@acme-tools` installs from a marketplace — which is just a repo with a `marketplace.json` listing plugins. Add one with `/plugin marketplace add owner/repo`."},
+ {f:"Local dev loop",b:"`claude --plugin-dir ./my-plugin` loads your work-in-progress plugin straight from disk. Iterate, `/reload-plugins` — no publishing, no installing."},
+ {f:"When to reach for a plugin",b:"Multiple components + team distribution = plugin. A single hook or one skill? Just commit the file. The repo's pr-review example: 3 commands, 3 agents, 2 MCP servers, 4 hooks — 2-minute setup instead of 2 hours."}
+],
+quiz:[
+ {t:"mcq",q:"Where does a plugin's manifest live?",
+  c:[".claude-plugin/plugin.json","package.json","plugin.yaml in the root","manifest.md"],a:0,
+  why:"That folder+file is what makes a repo a plugin. Everything else is the same commands/agents/skills layout you know."},
+ {t:"mcq",q:"Which of these can a plugin bundle?",
+  c:["All of it — commands, subagents, skills, hooks AND MCP servers","Only slash commands","Only hooks","Themes only"],a:0,
+  why:"That's the point: a plugin is the highest-level container. One install wires up an entire workflow."},
+ {t:"mcq",ctx:"Your dream setup — 3 commands, 2 agents, a formatter hook — works great. Now 12 teammates want it.",
+  q:"The clean way to share?",
+  c:["Package it as a plugin in a team marketplace — everyone runs one install","A long README with 9 manual steps","Zip it and email it","Screen-share and copy files live"],a:0,
+  why:"Plugins turn tribal setup knowledge into infrastructure. Updates propagate too — fix once, everyone benefits."},
+ {t:"build",q:"Install the pr-review plugin from your team's acme-tools marketplace.",
+  chips:["/plugin","install","pr-review@acme-tools","add","/install"],ans:["/plugin","install","pr-review@acme-tools"],
+  why:"`name@marketplace` addressing — like npm packages, but for your Claude setup."},
+ {t:"mcq",q:"Best way to test a plugin you're still building?",
+  c:["claude --plugin-dir ./my-plugin","Publish it and install for real each time","Copy files into ~/.claude by hand","Test in production"],a:0,
+  why:"Load straight from your working directory, iterate freely, `/reload-plugins` to pick up changes."},
+ {t:"match",q:"Match each part of a plugin to its content.",
+  pairs:[["plugin.json","manifest: name + version"],["commands/","slash commands"],["agents/","subagents"],["hooks/","event automation"]]},
+ {t:"mcq",q:"You have exactly ONE formatting hook to share with the team. You should…",
+  c:["Just commit it in .claude/settings.json — a plugin is overkill","Build a plugin with a marketplace","Create an npm package","Rewrite it as an MCP server"],a:0,
+  why:"Match packaging to size. Plugins shine for multi-component bundles; single features travel fine as plain committed config."}
+],
+irl:{t:"Take stock of everything you've built through these stations — commands, memory, a hook, an agent. If a teammate would want any two of them: scaffold a plugin (`claude plugin init`) and put them in. You just became the team's force multiplier."}},
+
+/* ── 12 · Automation & CI ── */
+{slug:"automation",icon:"🏭",title:"Automation & CI",folder:"10-cli",mins:10,
+what:"The endgame: Claude as a build tool — scripts, cron jobs, CI pipelines that review, summarize and fix.",
+cards:[
+ {f:"The equation",b:"`claude -p` + the right flags = Claude as a command-line program. Anything you can script, cron, or run in CI can now include a reasoning step. This is where daily usage becomes leverage."},
+ {f:"Structured output",b:"`--output-format json` returns a machine-readable envelope you can parse with jq. Never rely on \"please answer in JSON\" alone — a flag is a contract, a prompt is a wish."},
+ {f:"Guardrails for robots",b:"Automation runs unattended, so scope it hard: `--allowedTools \"Bash(npm test),Read\"` allowlists exactly what it may do; `--max-turns 10` caps runaway loops. Least privilege, always."},
+ {f:"CI code review",b:"A GitHub Action runs `claude -p \"review this diff for bugs and security issues\"` on every PR and posts the findings. The exit code can even gate the merge. Every PR gets a first review in seconds."},
+ {f:"Recipes to steal",b:"Nightly: `cat error.log | claude -p \"top 3 issues?\"` mailed to the team. Batch: loop over files, transform each. Release: generate the changelog from `git log`. Start with one; they compound."}
+],
+quiz:[
+ {t:"build",q:"Build the CI step: review a diff and get machine-readable output.",
+  chips:["claude","-p","\"review this diff\"","--output-format","json","--interactive"],
+  ans:["claude","-p","\"review this diff\"","--output-format","json"],
+  why:"Print mode + JSON output is the CI pattern: parseable results, exit code for the pipeline."},
+ {t:"mcq",q:"How do you GUARANTEE parseable JSON from a scripted call?",
+  c:["--output-format json — the flag enforces the envelope","Write \"respond only in JSON!!\" in the prompt","Both are equally reliable","Parse whatever comes back with regex"],a:0,
+  why:"Prompts are suggestions; flags are contracts. In automation you want contracts."},
+ {t:"mcq",q:"Your nightly job might loop forever on a weird input. Which flag caps it?",
+  c:["--max-turns","--fast","--timeout-ish","--please-stop"],a:0,
+  why:"`--max-turns` bounds the agentic loop (budget-cap flags exist too). Unattended = always bounded."},
+ {t:"mcq",q:"A headless job should only run tests and read files. Which invocation?",
+  c:["claude -p \"…\" --allowedTools \"Bash(npm test),Read\"","claude -p \"…\" --dangerously-skip-permissions","claude \"…\" and hope","claude -p \"…\" --allowedTools \"Bash\""],a:0,
+  why:"Pattern-level allowlisting: exactly `npm test`, plus reading. The dangerous flag is for sandboxed containers, not your CI."},
+ {t:"mcq",q:"`claude -p` opens an interactive session.",
+  c:["False — it prints one result and exits, which is why scripts can use it","True"],a:0,
+  why:"Non-interactive is the whole point: stdin in, answer out, exit code back. Composable like any Unix tool."},
+ {t:"mcq",ctx:"Every morning someone manually skims 2GB of overnight logs for incidents.",
+  q:"Your automation?",
+  c:["Cron: filter the log, pipe into claude -p \"summarize incidents, worst first\", post to Slack","Buy a bigger monitor","Rotate who suffers each week","Grep for 'ERROR' and count"],a:0,
+  why:"Filter first (keep input sane), reason second, deliver where people already look. The template for most log automation."},
+ {t:"match",q:"Match the flag to its job.",
+  pairs:[["--output-format json","machine-readable answer"],["--max-turns","cap the agentic loop"],["--allowedTools","allowlist what it may do"],["exit code","lets CI pass or fail the job"]]},
+ {t:"mcq",q:"Which is a real, sensible CI use of Claude Code?",
+  c:["PR review bot: claude -p reviews each diff and posts findings","Letting it force-push to main unattended","Auto-merging anything it likes","Replacing all tests with vibes"],a:0,
+  why:"Assist and gate — great. Unattended destructive power — no. The permission model exists precisely to draw that line."}
+],
+irl:{t:"Pick your most annoying weekly chore (log triage, changelog, PR summaries). Write a 5-line script around claude -p with --allowedTools scoped tight. Put it in cron or CI. That's the A-to-Z: you now automate with Claude."}}
+];
+
+/* ═════════ levels & badges ═════════ */
+const LEVELS=[
+ [0,"Visitor"],[80,"Prompt Apprentice"],[200,"Command Cadet"],[360,"Memory Keeper"],
+ [560,"Rewind Ranger"],[800,"Skill Smith"],[1080,"Hook Whisperer"],[1400,"Context Surgeon"],
+ [1760,"Agent Wrangler"],[2140,"Plugin Artisan"],[2500,"Automation Architect"],[2800,"Claude Code Sensei"]
+];
+const BADGES=[
+ {id:"first",ic:"👣",nm:"First Steps",ds:"Finish your first Learn deck"},
+ {id:"perfect",ic:"🎯",nm:"Sharpshooter",ds:"100% first-try on any quiz"},
+ {id:"combo5",ic:"🔥",nm:"On Fire",ds:"5 correct answers in a row"},
+ {id:"vault",ic:"🧹",nm:"Vault Cleaner",ds:"Empty a non-empty review vault"},
+ {id:"streak3",ic:"📅",nm:"3-Day Streak",ds:"Learn 3 days in a row"},
+ {id:"streak7",ic:"🗓️",nm:"7-Day Streak",ds:"Learn 7 days in a row"},
+ {id:"shipper",ic:"🚢",nm:"Ships It IRL",ds:"Apply 3 stations at work"},
+ {id:"allboss",ic:"👑",nm:"Completionist",ds:"Beat every boss"}
+];
+MODULES.forEach((m,i)=>BADGES.push({id:"boss"+i,ic:m.icon,nm:m.title+" Boss",ds:"Beat the "+m.title+" boss"}));
+
+/* ═════════ state ═════════ */
+const KEY="ccq.v1";
+const DEF={xp:0,streak:0,lastDay:"",name:"",onboarded:false,startAt:0,irlCount:0,
+ settings:{theme:"auto",motion:"auto",fx:"full",pace:"micro",fs:1},
+ mods:{},vault:[],badges:[]};
+function loadState(){
+  let s=null; try{s=JSON.parse(localStorage.getItem(KEY)||"null");}catch(e){}
+  const d=JSON.parse(JSON.stringify(DEF));
+  if(!s) return d;
+  const out=Object.assign(d,s);
+  out.settings=Object.assign(JSON.parse(JSON.stringify(DEF.settings)),s.settings||{});
+  return out;
+}
+let S=loadState();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function mp(i){const k=MODULES[i].slug;if(!S.mods[k])S.mods[k]={learn:0,quiz:false,best:0,boss:false,irl:false};return S.mods[k];}
+function levelIdx(xp){let li=0;LEVELS.forEach((l,i)=>{if(xp>=l[0])li=i;});return li;}
+function motionOK(){return S.settings.motion!=="off"&&!(window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches);}
+function fxOK(){return S.settings.fx==="full"&&motionOK();}
+function applyPrefs(){
+  const r=document.documentElement;
+  if(S.settings.theme==="auto")r.removeAttribute("data-theme");else r.setAttribute("data-theme",S.settings.theme);
+  r.setAttribute("data-motion",motionOK()?"on":"off");
+  r.style.setProperty("--fs",[15,17,19][S.settings.fs]+"px");
+}
+function touch(){
+  const t=todayStr(); if(S.lastDay===t)return;
+  const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  S.streak=(S.lastDay===y)?S.streak+1:1; S.lastDay=t;
+  if(S.streak>=3)badge("streak3"); if(S.streak>=7)badge("streak7");
+}
+function addXP(n){
+  const b=levelIdx(S.xp); S.xp+=n; touch(); const a=levelIdx(S.xp); save(); renderHUD();
+  if(a>b){notify('<div class="huge">▲</div><h2>Level '+a+' — '+esc(LEVELS[a][1])+'</h2><div class="sub2">'+S.xp+' xp. Keep going — the next title is '+(LEVELS[a+1]?esc(LEVELS[a+1][1])+' at '+LEVELS[a+1][0]+' xp.':'yours already. Top of the mountain.')+'</div>');boom();}
+}
+function badge(id){
+  if(S.badges.includes(id))return; S.badges.push(id); save();
+  const b=BADGES.find(x=>x.id===id); if(!b)return;
+  notify('<div class="huge">'+b.ic+'</div><h2>Badge unlocked</h2><div class="sub2"><b>'+esc(b.nm)+'</b> — '+esc(b.ds)+'</div>');
+}
+/* overlay queue */
+let ovQ=[],ovOn=false;
+function notify(html,btns){ovQ.push({html,btns});pump();}
+function pump(){
+  if(ovOn||!ovQ.length)return; ovOn=true; const n=ovQ.shift();
+  $("#overlay").innerHTML='<div class="ovcard"><div class="bod">'+n.html+(n.btns||'<button class="btn primary" onclick="A.closeOv()">Continue</button>')+'</div></div>';
+  $("#overlay").classList.add("show");
+}
+function closeOv(){ovOn=false;$("#overlay").classList.remove("show");pump();}
+/* confetti */
+function boom(){
+  if(!fxOK())return;
+  const cv=$("#fx"),ctx=cv.getContext("2d");
+  cv.width=innerWidth;cv.height=innerHeight;
+  const cols=["#E68A4E","#8FC08A","#D6A345","#EFE8DA","#BC5F25"];
+  const ps=[];for(let i=0;i<90;i++)ps.push({x:innerWidth/2,y:innerHeight*0.3,vx:(Math.random()-.5)*11,vy:-Math.random()*10-3,g:.28,s:4+Math.random()*5,c:cols[i%cols.length],r:Math.random()*6.28,vr:(Math.random()-.5)*.3});
+  const t0=performance.now();
+  (function tick(t){
+    const dt=(t-t0);ctx.clearRect(0,0,cv.width,cv.height);
+    ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.r+=p.vr;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.globalAlpha=Math.max(0,1-dt/1500);ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);ctx.restore();});
+    if(dt<1500)requestAnimationFrame(tick);else ctx.clearRect(0,0,cv.width,cv.height);
+  })(t0);
+}
+
+/* ═════════ chrome ═════════ */
+function renderHUD(){
+  const li=levelIdx(S.xp),nxt=LEVELS[li+1];
+  const pct=nxt?Math.min(100,Math.round((S.xp-LEVELS[li][0])/(nxt[0]-LEVELS[li][0])*100)):100;
+  $("#hud").innerHTML='<div class="inner"><span class="lvlchip">LV '+li+'</span><div class="hudtitle"><div class="name">'+esc(LEVELS[li][1])+'</div><div class="xpbar"><div class="fill" style="width:'+pct+'%"></div></div></div><div class="streak">🔥<b>'+S.streak+'</b>d · '+S.xp+'xp</div></div>';
+}
+function renderTabs(cur){
+  const v=S.vault.length;
+  const tab=(id,ic,nm,extra)=>'<button class="tab '+(cur===id?"on":"")+'" onclick="A.go(\''+id+'\')"><span class="ic">'+ic+(extra||'')+'</span>'+nm+'</button>';
+  $("#tabs").innerHTML='<div class="inner">'+tab("home","🗺️","Map")+tab("vault","🗃️","Vault",v?'<span class="cnt">'+v+'</span>':'')+tab("badges","🏅","Badges")+tab("settings","⚙️","Settings")+'</div>';
+}
+function setScreen(n){
+  const chrome=["home","vault","badges","settings"].includes(n);
+  $("#hud").style.display=chrome?"":"none";
+  $("#tabs").style.display=chrome?"":"none";
+  if(chrome){renderHUD();renderTabs(n);}
+  window.scrollTo(0,0);
+}
+function show(html){$("#app").innerHTML=html;}
+
+/* ═════════ home / map ═════════ */
+function nextIdx(){
+  for(let o=0;o<MODULES.length;o++){const i=(S.startAt+o)%MODULES.length;if(!mp(i).boss)return i;}
+  return -1;
+}
+function renderHome(){
+  setScreen("home");
+  const ni=nextIdx();
+  const hello=S.name?("hello, "+esc(S.name)):"hello";
+  let h='<div class="hero"><h1>❯ '+hello+'_</h1><div class="sub">12 stations. Each one is the same shape: <b>Learn → Quiz → Boss → Ship it</b>. 2–10 minutes each, stop anytime — everything saves on this device.</div></div>';
+  if(ni>=0){const m=MODULES[ni];const p=mp(ni);const verb=!p.learn?"Start":(!p.quiz?"Quiz":"Boss fight");
+    h+='<button class="nextup" onclick="A.station('+ni+')"><span style="font-size:1.5rem">'+m.icon+'</span><span><div class="go">NEXT UP: '+verb+'</div><div class="what">'+esc(m.title)+' · ~'+m.mins+' min</div></span><span class="arrow">❯</span></button>';
+  } else {
+    h+='<div class="panel center"><div style="font-size:2rem">👑</div><b>Every boss beaten.</b><div class="dimtxt">You know Claude Code A to Z. The vault and your real projects are the endgame now.</div></div>';
+  }
+  h+='<div class="label" style="margin:6px 0 2px">The quest line</div><div class="map">';
+  MODULES.forEach((m,i)=>{
+    const p=mp(i);
+    const cls=p.boss?"done":(i===ni?"next":"");
+    const tk=(on,nm)=>'<span class="tick'+(on?" on":"")+'">'+nm+'</span>';
+    h+='<button class="station '+cls+'" onclick="A.station('+i+')"><span class="node">'+m.icon+'</span><span class="st-body"><div class="st-title">'+(i+1)+' · '+esc(m.title)+'</div><div class="st-meta">'+esc(m.folder)+' · ~'+m.mins+' min</div><div class="ticks">'+tk(p.learn>=m.cards.length,"LEARN")+tk(p.quiz,"QUIZ")+tk(p.boss,"BOSS")+tk(p.irl,"IRL")+'</div></span>'+(p.boss?'<span class="st-badge">🏅</span>':'')+'</button>';
+  });
+  h+='</div><div class="panel dimtxt">📲 On iPad: open this page in Safari → Share → <b>Add to Home Screen</b> for a full-screen app. · Built from <a href="https://github.com/cvidge/claude-howto">claude-howto</a> + the <a href="https://code.claude.com/docs">official docs</a>.</div>';
+  show(h);
+}
+
+/* ═════════ station page ═════════ */
+function renderStation(i){
+  setScreen("station");
+  const m=MODULES[i],p=mp(i);
+  const bossOpen=p.quiz;
+  let h='<div class="lesson-head"><div class="inner"><button class="exit" onclick="A.go(\'home\')">‹ map</button><span class="label">station '+(i+1)+' / '+MODULES.length+'</span></div></div>';
+  h+='<div class="term"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="path">~/quest/'+esc(m.folder)+'</span></div><div class="bod">';
+  h+='<h2>'+m.icon+' '+esc(m.title)+'</h2><p>'+fmt(m.what)+'</p>';
+  h+='<p class="dimtxt">What to expect, in this exact order: <b>'+m.cards.length+' learn cards</b> → <b>'+m.quiz.length+' questions</b> → <b>boss (6 questions, need 5)</b> → <b>ship it at work</b>. ~'+m.mins+' min total. Stop anytime.</p>';
+  h+='</div></div>';
+  h+='<button class="btn '+(p.learn>=m.cards.length?"":"primary")+'" onclick="A.learn('+i+')">'+(p.learn>=m.cards.length?"✓ LEARN — replay the deck":"▶ LEARN — "+m.cards.length+" cards")+'</button>';
+  h+='<button class="btn '+(p.quiz&&p.learn>=m.cards.length?"":(p.learn>=m.cards.length?"primary":""))+'" onclick="A.quiz('+i+')">'+(p.quiz?"✓ QUIZ — best "+p.best+"% · retake":"◆ QUIZ — "+m.quiz.length+" questions")+'</button>';
+  h+='<button class="btn '+(bossOpen&&!p.boss?"primary":"")+'" '+(bossOpen?"":"disabled")+' onclick="A.boss('+i+')">'+(p.boss?"🏅 BOSS beaten — rematch":(bossOpen?"⚔️ BOSS — 6 questions, no retries":"🔒 BOSS — finish the quiz first"))+'</button>';
+  h+='<div class="panel"><div class="label">🚢 Ship it at work · +40xp</div><p style="font-size:.93rem">'+fmt(m.irl.t)+'</p>'+(p.irl?'<div class="typeline">✓ done in real life — respect.</div>':'<button class="btn" onclick="A.irl('+i+')">I actually did this → claim +40xp</button>')+'</div>';
+  show(h);
+}
+
+/* ═════════ session engine ═════════ */
+let SES=null,QS=null;
+function newSes(mode,m,items){SES={mode,m,items,pos:0,right:0,firstTry:0,combo:0,count:0,breathed:false,hadItems:items.length>0};renderItem();}
+function startLearn(i){newSes("learn",i,MODULES[i].cards);}
+function startQuiz(i){newSes("quiz",i,MODULES[i].quiz.map((q,qi)=>Object.assign({qi},q)));}
+function startBoss(i){const pool=shuffle(MODULES[i].quiz.map((q,qi)=>Object.assign({qi},q))).slice(0,6);newSes("boss",i,pool);}
+function startVault(){
+  const items=S.vault.map(r=>Object.assign({ref:r,qi:r.q},MODULES[r.m].quiz[r.q]));
+  newSes("vault",-1,shuffle(items));
+}
+function pushVault(){
+  if(SES.mode!=="quiz"&&SES.mode!=="boss")return;
+  const ref={m:SES.m,q:SES.items[SES.pos].qi};
+  if(!S.vault.some(v=>v.m===ref.m&&v.q===ref.q)){S.vault.push(ref);save();}
+}
+function dropVault(it){
+  if(SES.mode!=="vault"||!it.ref)return;
+  S.vault=S.vault.filter(v=>!(v.m===it.ref.m&&v.q===it.ref.q));save();
+}
+function head(){
+  const dots=SES.items.map((_,k)=>'<span class="dot2'+(k<SES.pos?" on":(k===SES.pos?" now":""))+'"></span>').join("");
+  const lbl={learn:"LEARN",quiz:"QUIZ",boss:"⚔️ BOSS",vault:"VAULT"}[SES.mode];
+  return '<div class="lesson-head"><div class="inner"><button class="exit" onclick="A.exitSes()">‹</button><div class="dots">'+dots+'</div><span class="label">'+lbl+'</span>'+(SES.combo>=3?'<span class="combo">🔥×'+SES.combo+'</span>':'')+'</div></div>';
+}
+function renderItem(){
+  setScreen("lesson");
+  if(SES.pos>=SES.items.length)return finishSes();
+  QS={tries:0,done:0,map:[],rmap:[],fill:[],selL:-1,selR:-1,matched:0,mist:0};
+  const it=SES.items[SES.pos];
+  if(SES.mode==="learn")return renderCard(it);
+  renderQ(it);
+}
+function renderCard(it){
+  let h=head();
+  h+='<div class="qtype"><div class="label">card '+(SES.pos+1)+' / '+SES.items.length+'</div>';
+  h+='<div class="flip" id="flip"><div class="inner2"><div class="face"><div class="cue">tap reveal ↓</div><div class="big">'+fmt(it.f)+'</div></div><div class="face back"><div class="cue">'+esc(it.f)+'</div><div class="bod2">'+fmt(it.b)+'</div></div></div></div></div>';
+  h+='<div class="actionbar"><div class="inner" id="act"><button class="btn primary" onclick="A.flip()">Reveal</button></div></div>';
+  show(h);
+}
+function flipCard(){
+  $("#flip").classList.add("flipped");
+  const isNew=SES.pos>=mp(SES.m).learn;
+  $("#act").innerHTML='<button class="btn primary" onclick="A.gotIt()">Got it '+(isNew?'<span class="xpfloat">+5xp</span> ':'')+'→</button>';
+}
+function gotIt(){
+  const p=mp(SES.m);
+  if(SES.pos>=p.learn){p.learn=SES.pos+1;addXP(5);save();}
+  next();
+}
+/* question shell */
+function qShell(it,inner,action){
+  let h=head();
+  h+='<div class="qtype"><div class="label">question '+(SES.pos+1)+' / '+SES.items.length+'</div>';
+  if(it.ctx)h+='<div class="qctx">'+fmt(it.ctx)+'</div>';
+  h+='<div class="qtext">'+fmt(it.q)+'</div>'+inner+'<div id="fb"></div><div class="spacer"></div></div>';
+  h+='<div class="actionbar"><div class="inner" id="act">'+(action||"")+'</div></div>';
+  show(h);
+}
+function renderQ(it){
+  if(it.t==="mcq"){
+    QS.map=shuffle(it.c.map((_,k)=>k));
+    const inner='<div id="chs">'+QS.map.map((orig,k)=>'<button class="choice" id="ch'+k+'" onclick="A.pick('+k+')"><span class="key">'+"ABCD"[k]+'</span><span>'+fmt(it.c[orig])+'</span></button>').join("")+'</div>';
+    qShell(it,inner);
+  }else if(it.t==="build"){
+    qShell(it,'<div id="bwrap"></div>','<div class="btnrow"><button class="btn ghost" onclick="A.bReset()">Reset</button><button class="btn primary" id="chk" disabled onclick="A.bCheck()">Check</button></div>');
+    drawBuild(it);
+  }else if(it.t==="match"){
+    QS.rmap=shuffle(it.pairs.map((_,k)=>k));
+    const inner='<div class="matchgrid">'+it.pairs.map((p,r)=>'<button class="mcell mono2" id="L'+r+'" onclick="A.mL('+r+')">'+fmt(p[0])+'</button><button class="mcell" id="R'+r+'" onclick="A.mR('+r+')">'+fmt(it.pairs[QS.rmap[r]][1])+'</button>').join("")+'</div>';
+    qShell(it,inner);
+  }
+}
+/* scoring */
+function scoreQ(it,first){
+  let xp=first?10:5;
+  SES.right++;
+  if(first){SES.firstTry++;SES.combo++;if(SES.combo>=3)xp+=5;if(SES.combo>=5)badge("combo5");}
+  if(first)dropVault(it);
+  addXP(xp);
+  showFB(true,xp,it.why);
+}
+function missQ(it,extra){
+  SES.combo=0;
+  showFB(false,0,(extra||"")+(it.why?fmtWhy(it.why):""));
+}
+function fmtWhy(w){return '<div style="margin-top:4px">'+fmt(w)+'</div>';}
+function showFB(good,xp,why){
+  QS.done=1;
+  $("#fb").innerHTML='<div class="feedback '+(good?"good":"bad")+'"><div class="verdict">'+(good?'✓ CORRECT'+(xp?' <span class="xpfloat">+'+xp+'xp</span>':''):'✗ NOT QUITE')+'</div><div class="why">'+(good?fmt(why||""):why||"")+'</div></div>';
+  $("#act").innerHTML='<button class="btn primary" onclick="A.next()">Continue →</button>';
+  $("#fb").scrollIntoView({block:"nearest"});
+}
+/* mcq */
+function pick(k){
+  if(QS.done)return;
+  const it=SES.items[SES.pos],orig=QS.map[k],el=$("#ch"+k);
+  if(orig===it.a){
+    el.classList.add("right","lock");
+    QS.map.forEach((o,kk)=>{const e=$("#ch"+kk);e.classList.add("lock");if(kk!==k&&!e.classList.contains("wrong"))e.classList.add("dimmed");});
+    scoreQ(it,QS.tries===0);
+  }else{
+    QS.tries++;pushVault();
+    el.classList.add("wrong","dimmed","shake");
+    if(SES.mode==="boss"||SES.mode==="vault"){
+      QS.map.forEach((o,kk)=>{const e=$("#ch"+kk);e.classList.add("lock");if(o===it.a)e.classList.add("right");});
+      missQ(it);
+    }else{SES.combo=0;renderHUD();}
+  }
+}
+/* build */
+function drawBuild(it){
+  const sep=it.sep||" ";
+  const slots=it.ans.map((_,si)=>{
+    const f=QS.fill[si]!==undefined;
+    return '<span class="slot'+(f?" filled":"")+'" onclick="A.unfill('+si+')">'+(f?esc(it.chips[QS.fill[si]]):"···")+'</span>';
+  }).join('<span class="lit">'+esc(sep)+'</span>');
+  const chips=it.chips.map((c,ci)=>'<button class="chip'+(QS.fill.includes(ci)?" used":"")+'" onclick="A.fillChip('+ci+')">'+esc(c)+'</button>').join("");
+  $("#bwrap").innerHTML='<div class="slotline" id="sl"><span class="lit">❯ </span>'+slots+'</div><div class="label">tap the pieces in order</div><div class="chips">'+chips+'</div>';
+  const chk=$("#chk");if(chk)chk.disabled=QS.fill.filter(x=>x!==undefined).length<it.ans.length;
+}
+function fillChip(ci){
+  if(QS.done)return;
+  const it=SES.items[SES.pos];
+  if(QS.fill.includes(ci))return;
+  for(let si=0;si<it.ans.length;si++){if(QS.fill[si]===undefined){QS.fill[si]=ci;break;}}
+  drawBuild(it);
+}
+function unfill(si){if(QS.done)return;QS.fill[si]=undefined;drawBuild(SES.items[SES.pos]);}
+function bReset(){if(QS.done)return;QS.fill=[];drawBuild(SES.items[SES.pos]);}
+function bCheck(){
+  if(QS.done)return;
+  const it=SES.items[SES.pos];
+  const built=QS.fill.map(ci=>it.chips[ci]);
+  if(built.length===it.ans.length&&built.every((c,x)=>c===it.ans[x])){
+    scoreQ(it,QS.tries===0);
+  }else{
+    QS.tries++;pushVault();
+    const sl=$("#sl");sl.classList.add("shake");setTimeout(()=>sl.classList.remove("shake"),350);
+    if(SES.mode==="boss"||SES.mode==="vault"){
+      missQ(it,'<div class="codewrap">Answer: <code>'+esc(it.ans.join(it.sep||" "))+'</code></div>');
+    }else{SES.combo=0;renderHUD();QS.fill=[];drawBuild(it);}
+  }
+}
+/* match */
+function mSel(){
+  const it=SES.items[SES.pos];
+  it.pairs.forEach((_,r)=>{
+    const L=$("#L"+r),R=$("#R"+r);
+    if(L&&!L.classList.contains("ok"))L.classList.toggle("sel",QS.selL===r);
+    if(R&&!R.classList.contains("ok"))R.classList.toggle("sel",QS.selR===r);
+  });
+  if(QS.selL<0||QS.selR<0)return;
+  const l=QS.selL,r=QS.selR;QS.selL=-1;QS.selR=-1;
+  if(QS.rmap[r]===l){
+    $("#L"+l).classList.remove("sel");$("#R"+r).classList.remove("sel");
+    $("#L"+l).classList.add("ok");$("#R"+r).classList.add("ok");
+    QS.matched++;
+    if(QS.matched===it.pairs.length){
+      if(QS.mist===0){scoreQ(it,true);}
+      else if(SES.mode==="boss"||SES.mode==="vault"){missQ(it,"All pairs revealed — worth one more look.");}
+      else{QS.tries=1;scoreQ(it,false);}
+    }
+  }else{
+    QS.mist++;SES.combo=0;renderHUD();
+    if(SES.mode==="quiz")pushVault();
+    const L=$("#L"+l),R=$("#R"+r);
+    L.classList.remove("sel");R.classList.remove("sel");
+    L.classList.add("no");R.classList.add("no");
+    setTimeout(()=>{L.classList.remove("no");R.classList.remove("no");},480);
+  }
+}
+function mL(r){if(QS.done)return;QS.selL=(QS.selL===r?-1:r);mSel();}
+function mR(r){if(QS.done)return;QS.selR=(QS.selR===r?-1:r);mSel();}
+/* flow */
+function next(){
+  SES.pos++;SES.count++;
+  if(S.settings.pace==="micro"&&SES.count===12&&!SES.breathed&&SES.pos<SES.items.length){
+    SES.breathed=true;
+    setScreen("lesson");
+    show(head()+'<div class="panel center" style="margin-top:40px"><div style="font-size:2rem">🌬️</div><b>12 in a row — nice focus.</b><p class="dimtxt">Micro-pace check-in: keep going or stop here. Your progress is already saved either way.</p><button class="btn primary" onclick="A.resume()">Keep going →</button><button class="btn ghost" onclick="A.exitSes()">Stop for now</button></div>');
+    return;
+  }
+  renderItem();
+}
+function exitSes(){if(SES&&SES.m>=0&&SES.mode!=="vault")renderStation(SES.m);else go("home");SES=null;}
+function finishSes(){
+  const mode=SES.mode,m=SES.m,len=SES.items.length;
+  setScreen("lesson");
+  let h='<div class="lesson-head"><div class="inner"><button class="exit" onclick="A.exitSes()">‹</button><span class="label">complete</span></div></div>';
+  if(mode==="learn"){
+    const p=mp(m);p.learn=Math.max(p.learn,len);save();badge("first");
+    h+='<div class="panel center"><div style="font-size:2rem">📚</div><h2>Deck complete</h2><p class="dimtxt">'+len+' concepts loaded. The quiz makes them stick — same ideas, now from memory.</p></div><button class="btn primary" onclick="A.quiz('+m+')">◆ Start the quiz →</button><button class="btn ghost" onclick="A.station('+m+')">Back to station</button>';
+  }else if(mode==="quiz"){
+    const p=mp(m);const pct=Math.round(SES.firstTry/len*100);
+    p.quiz=true;p.best=Math.max(p.best,pct);save();
+    if(pct===100)badge("perfect");
+    h+='<div class="panel center"><div style="font-size:2rem">'+(pct>=80?"🎯":"◆")+'</div><h2>'+pct+'% first-try</h2><p class="dimtxt">'+SES.firstTry+' of '+len+' on the first attempt.'+(S.vault.some(v=>v.m===m)?" Missed ones went to the vault for later review.":"")+'</p></div><button class="btn primary" onclick="A.boss('+m+')">⚔️ Fight the boss →</button><button class="btn ghost" onclick="A.go(\'home\')">Back to map</button>';
+  }else if(mode==="boss"){
+    const need=Math.ceil(len*0.8);const pass=SES.right>=need;
+    if(pass){
+      const p=mp(m);const already=p.boss;p.boss=true;save();
+      if(!already){addXP(60);badge("boss"+m);if(MODULES.every((_,i)=>mp(i).boss))badge("allboss");}
+      boom();
+      const ni=nextIdx();
+      h+='<div class="panel center"><div style="font-size:2.4rem">🏅</div><h2>Boss beaten — '+SES.right+'/'+len+'</h2><p class="dimtxt">'+esc(MODULES[m].title)+' is yours.'+(already?"":" +60xp")+' Don’t skip the “Ship it” step on the station page — that’s where it becomes real.</p></div>'+(ni>=0?'<button class="btn primary" onclick="A.station('+ni+')">Next station: '+esc(MODULES[ni].title)+' →</button>':'')+'<button class="btn ghost" onclick="A.station('+m+')">Back to station</button>';
+    }else{
+      h+='<div class="panel center"><div style="font-size:2rem">💤</div><h2>'+SES.right+'/'+len+' — not this time</h2><p class="dimtxt">You need '+need+'. No penalty, no lives lost. Skim the deck once more or just rematch — bosses reshuffle every time.</p></div><button class="btn primary" onclick="A.boss('+m+')">⚔️ Rematch</button><button class="btn ghost" onclick="A.learn('+m+')">Review the deck first</button><button class="btn ghost" onclick="A.station('+m+')">Back</button>';
+    }
+  }else if(mode==="vault"){
+    if(S.vault.length===0&&SES.hadItems)badge("vault");
+    h+='<div class="panel center"><div style="font-size:2rem">🗃️</div><h2>Vault review done</h2><p class="dimtxt">'+(S.vault.length===0?"Vault is empty. Clean slate.":S.vault.length+" still inside — they leave when you get them right first-try.")+'</p></div><button class="btn primary" onclick="A.go(\'home\')">Back to map</button>';
+  }
+  SES=null;show(h);
+}
+
+/* ═════════ vault / badges / settings ═════════ */
+function renderVault(){
+  setScreen("vault");
+  const n=S.vault.length;
+  const byMod={};S.vault.forEach(v=>{byMod[v.m]=(byMod[v.m]||0)+1;});
+  let h='<div class="hero"><h1>🗃️ Memory vault</h1><div class="sub">Every question you miss lands here. Answer it right on the first try and it leaves. Spaced repetition, zero setup.</div></div>';
+  if(n===0){h+='<div class="panel center"><div style="font-size:2rem">✨</div><b>Empty.</b><div class="dimtxt">Nothing haunting you. Go break something new on the map.</div></div>';}
+  else{
+    h+='<div class="panel"><div class="label">inside right now</div><div style="margin-top:8px">'+Object.keys(byMod).map(mi=>'<span class="tick" style="font-size:.72rem;margin-right:6px">'+esc(MODULES[mi].title)+' × '+byMod[mi]+'</span>').join("")+'</div></div>';
+    h+='<button class="btn primary" onclick="A.vaultGo()">▶ Review '+n+' item'+(n>1?"s":"")+'</button>';
+  }
+  show(h);
+}
+function renderBadges(){
+  setScreen("badges");
+  let h='<div class="hero"><h1>🏅 Badges</h1><div class="sub">'+S.badges.length+' of '+BADGES.length+' unlocked.</div></div><div class="badgegrid">';
+  BADGES.forEach(b=>{const got=S.badges.includes(b.id);
+    h+='<div class="badge '+(got?"got":"off")+'"><div class="ic">'+b.ic+'</div><div class="nm">'+esc(b.nm)+'</div><div class="ds">'+esc(b.ds)+'</div></div>';});
+  h+='</div>';show(h);
+}
+function seg(key,opts,cur){
+  return '<span class="seg">'+opts.map(o=>'<button class="'+(cur===o[0]?"on":"")+'" onclick="A.setS(\''+key+'\',\''+o[0]+'\')">'+o[1]+'</button>').join("")+'</span>';
+}
+function renderSettings(){
+  setScreen("settings");
+  const st=S.settings;
+  let h='<div class="hero"><h1>⚙️ Settings</h1><div class="sub">Tune the app to your brain. Changes apply instantly.</div></div><div class="panel">';
+  h+='<div class="setrow"><span><div class="t">Name</div><div class="d">Only used to greet you.</div></span><input class="txt" style="width:150px" value="'+esc(S.name)+'" onchange="A.setName(this.value)"></div>';
+  h+='<div class="setrow"><span><div class="t">Theme</div></span>'+seg("theme",[["auto","AUTO"],["light","LIGHT"],["dark","DARK"]],st.theme)+'</div>';
+  h+='<div class="setrow"><span><div class="t">Motion</div><div class="d">OFF kills all animation and transitions.</div></span>'+seg("motion",[["auto","AUTO"],["off","OFF"]],st.motion)+'</div>';
+  h+='<div class="setrow"><span><div class="t">Celebrations</div><div class="d">Confetti on level-ups and boss wins.</div></span>'+seg("fx",[["full","FULL"],["subtle","QUIET"]],st.fx)+'</div>';
+  h+='<div class="setrow"><span><div class="t">Text size</div></span>'+seg("fs",[["0","A−"],["1","A"],["2","A+"]],String(st.fs))+'</div>';
+  h+='<div class="setrow"><span><div class="t">Pace</div><div class="d">Micro adds a gentle break check-in every 12 items.</div></span>'+seg("pace",[["micro","MICRO"],["flow","FLOW"]],st.pace)+'</div>';
+  h+='</div>';
+  h+='<div class="panel"><div class="label">sources</div><p class="dimtxt" style="margin-top:8px">Curriculum: <a href="https://github.com/cvidge/claude-howto">cvidge/claude-howto</a> (modules 01–10) · Facts verified against the <a href="https://code.claude.com/docs">official Claude Code docs</a>. To go deeper on any station, open its repo folder.</p></div>';
+  h+='<button class="btn ghost" onclick="A.resetAsk()">Erase all progress…</button>';
+  show(h);
+}
+
+/* ═════════ onboarding ═════════ */
+function ob0(){
+  setScreen("onboard");
+  show('<div class="hero"><h1>❯ claude code quest_</h1><div class="sub">Learn Claude Code A to Z by <b>doing</b> — no walls of text, no videos. 12 stations, each the exact same shape: <b>Learn → Quiz → Boss → Ship it at work</b>. You always know what’s next and how long it takes.</div></div><div class="panel"><div class="label">before we start — 3 quick taps</div><p class="dimtxt">1 · your name (optional) &nbsp;2 · your level &nbsp;3 · how your brain likes it. That’s the whole setup.</p><input class="txt" id="obname" placeholder="what should I call you? (optional)" style="margin-top:8px"></div><button class="btn primary" onclick="A.ob1()">Continue →</button>');
+}
+function ob1(){
+  const el=$("#obname");if(el)S.name=el.value.trim().slice(0,24);
+  setScreen("onboard");
+  const opt=(n,t,d)=>'<button class="choice" onclick="A.ob2('+n+')"><span class="key">'+"ABC"[n===0?0:(n===2?1:2)]+'</span><span><b>'+t+'</b><br><span class="dimtxt">'+d+'</span></span></button>';
+  show('<div class="hero"><h1>How much Claude Code<br>have you used?</h1><div class="sub">This only sets where “Next up” points first. Every station stays open — jump anywhere, anytime.</div></div>'+opt(0,"Never / barely","Start at station 1 — First Contact")+opt(2,"I use it, the basics","Start at station 3 — Memory & CLAUDE.md")+opt(5,"Regularly — level me up","Start at station 6 — Skills"));
+}
+function ob2(startAt){
+  S.startAt=startAt;
+  setScreen("onboard");
+  const st=S.settings;
+  show('<div class="hero"><h1>How your brain likes it</h1><div class="sub">All of this lives in Settings too — nothing is locked in.</div></div><div class="panel">'
+   +'<div class="setrow"><span><div class="t">Pace</div><div class="d">Micro = gentle break check-ins. Great for short attention bursts.</div></span>'+seg("pace",[["micro","MICRO"],["flow","FLOW"]],st.pace)+'</div>'
+   +'<div class="setrow"><span><div class="t">Celebrations</div><div class="d">Confetti, or calm.</div></span>'+seg("fx",[["full","FULL"],["subtle","QUIET"]],st.fx)+'</div>'
+   +'<div class="setrow"><span><div class="t">Motion</div><div class="d">OFF = zero animation, everything instant.</div></span>'+seg("motion",[["auto","AUTO"],["off","OFF"]],st.motion)+'</div>'
+   +'</div><button class="btn primary" onclick="A.obDone()">Start the quest ❯</button>');
+}
+function obDone(){S.onboarded=true;save();renderHome();}
+
+/* ═════════ public API + boot ═════════ */
+const A={
+  go(n){if(n==="home")renderHome();else if(n==="vault")renderVault();else if(n==="badges")renderBadges();else if(n==="settings")renderSettings();},
+  station:renderStation,learn:startLearn,quiz:startQuiz,boss:startBoss,vaultGo:startVault,
+  flip:flipCard,gotIt,pick,fillChip,unfill,bReset,bCheck,mL,mR,next,resume:renderItem.bind(null),exitSes,closeOv,
+  irl(i){const p=mp(i);if(p.irl)return;p.irl=true;S.irlCount=(S.irlCount||0)+1;save();addXP(40);if(S.irlCount>=3)badge("shipper");renderStation(i);},
+  setS(k,v){S.settings[k]=(k==="fs"?Number(v):v);save();applyPrefs();
+    if(document.body.contains($("#obname"))||$("#app").innerHTML.includes("Start the quest"))ob2(S.startAt);else renderSettings();},
+  setName(v){S.name=v.trim().slice(0,24);save();},
+  ob1,ob2,obDone,
+  resetAsk(){notify('<div class="huge">🗑️</div><h2>Erase all progress?</h2><div class="sub2">XP, badges, streak, vault — everything. There is no undo.</div>',
+    '<div class="btnrow"><button class="btn ghost" onclick="A.closeOv()">Keep it</button><button class="btn primary" onclick="A.doReset()">Erase</button></div>');},
+  doReset(){localStorage.removeItem(KEY);S=loadState();closeOv();applyPrefs();ob0();}
+};
+window.A=A;
+A.resume=function(){renderItem();};
+applyPrefs();
+if(S.onboarded)renderHome();else ob0();
+</script>
