@@ -853,7 +853,7 @@ MODULES.forEach((m,i)=>BADGES.push({id:"boss"+i,ic:m.icon,nm:m.title+" Boss",ds:
 
 /* ═════════ state ═════════ */
 const KEY="ccq.v1";
-const DEF={xp:0,streak:0,lastDay:"",name:"",onboarded:false,startAt:0,irlCount:0,
+const DEF={xp:0,streak:0,lastDay:"",name:"",onboarded:false,startAt:0,irlCount:0,dailyDone:"",
  settings:{theme:"auto",motion:"auto",fx:"full",pace:"micro",fs:1},
  mods:{},vault:[],badges:[]};
 function loadState(){
@@ -945,6 +945,12 @@ function renderHome(){
   const ni=nextIdx();
   const hello=S.name?("hello, "+esc(S.name)):"hello";
   let h='<div class="hero"><h1>❯ '+hello+'_</h1><div class="sub">12 stations. Each one is the same shape: <b>Learn → Quiz → Boss → Ship it</b>. 2–10 minutes each, stop anytime — everything saves on this device.</div></div>';
+  const hasProg=S.vault.length>0||MODULES.some((_,x)=>mp(x).quiz);
+  if(hasProg&&S.dailyDone!==todayStr()){
+    h+='<button class="panel" style="width:100%;text-align:left;border-color:var(--warn);cursor:pointer" onclick="A.daily()"><span class="label" style="color:var(--warn)">☀️ today\'s quest · +25xp</span><div style="font-weight:700;margin-top:4px">Up to 5 quick questions — vault first, then reinforcement</div><div class="dimtxt">~2 minutes. Keeps the streak alive.</div></button>';
+  }else if(hasProg){
+    h+='<div class="typeline">☀️ Daily quest done — 🔥 streak safe. Back tomorrow.</div>';
+  }
   if(ni>=0){const m=MODULES[ni];const p=mp(ni);const verb=!p.learn?"Start":(!p.quiz?"Quiz":"Boss fight");
     h+='<button class="nextup" onclick="A.station('+ni+')"><span style="font-size:1.5rem">'+m.icon+'</span><span><div class="go">NEXT UP: '+verb+'</div><div class="what">'+esc(m.title)+' · ~'+m.mins+' min</div></span><span class="arrow">❯</span></button>';
   } else {
@@ -988,18 +994,34 @@ function startVault(){
   const items=S.vault.map(r=>Object.assign({ref:r,qi:r.q},MODULES[r.m].quiz[r.q]));
   newSes("vault",-1,shuffle(items));
 }
+function startDaily(){
+  const items=[];
+  shuffle(S.vault).slice(0,3).forEach(r=>items.push(Object.assign({ref:r,qi:r.q},MODULES[r.m].quiz[r.q])));
+  const pool=MODULES.map((_,x)=>x).filter(x=>mp(x).quiz);
+  let guard=0;
+  while(items.length<5&&pool.length&&guard++<40){
+    const mi=pool[Math.floor(Math.random()*pool.length)];
+    const qz=MODULES[mi].quiz,qi=Math.floor(Math.random()*qz.length);
+    const dup=items.some(x=>(x.src&&x.src.m===mi&&x.src.q===qi)||(x.ref&&x.ref.m===mi&&x.ref.q===qi));
+    if(!dup)items.push(Object.assign({src:{m:mi,q:qi},qi},qz[qi]));
+  }
+  if(!items.length)return renderHome();
+  newSes("daily",-1,shuffle(items));
+}
 function pushVault(){
-  if(SES.mode!=="quiz"&&SES.mode!=="boss")return;
-  const ref={m:SES.m,q:SES.items[SES.pos].qi};
+  if(SES.mode==="vault")return;
+  const it=SES.items[SES.pos];
+  const ref=it.src||(SES.m>=0?{m:SES.m,q:it.qi}:null);
+  if(!ref)return;
   if(!S.vault.some(v=>v.m===ref.m&&v.q===ref.q)){S.vault.push(ref);save();}
 }
 function dropVault(it){
-  if(SES.mode!=="vault"||!it.ref)return;
+  if(!it.ref||(SES.mode!=="vault"&&SES.mode!=="daily"))return;
   S.vault=S.vault.filter(v=>!(v.m===it.ref.m&&v.q===it.ref.q));save();
 }
 function head(){
   const dots=SES.items.map((_,k)=>'<span class="dot2'+(k<SES.pos?" on":(k===SES.pos?" now":""))+'"></span>').join("");
-  const lbl={learn:"LEARN",quiz:"QUIZ",boss:"⚔️ BOSS",vault:"VAULT"}[SES.mode];
+  const lbl={learn:"LEARN",quiz:"QUIZ",boss:"⚔️ BOSS",vault:"VAULT",daily:"☀️ DAILY"}[SES.mode];
   return '<div class="lesson-head"><div class="inner"><button class="exit" onclick="A.exitSes()">‹</button><div class="dots">'+dots+'</div><span class="label">'+lbl+'</span>'+(SES.combo>=3?'<span class="combo">🔥×'+SES.combo+'</span>':'')+'</div></div>';
 }
 function renderItem(){
@@ -1081,7 +1103,7 @@ function pick(k){
   }else{
     QS.tries++;pushVault();
     el.classList.add("wrong","dimmed","shake");
-    if(SES.mode==="boss"||SES.mode==="vault"){
+    if(SES.mode!=="quiz"){
       QS.map.forEach((o,kk)=>{const e=$("#ch"+kk);e.classList.add("lock");if(o===it.a)e.classList.add("right");});
       missQ(it);
     }else{SES.combo=0;renderHUD();}
@@ -1116,7 +1138,7 @@ function bCheck(){
   }else{
     QS.tries++;pushVault();
     const sl=$("#sl");sl.classList.add("shake");setTimeout(()=>sl.classList.remove("shake"),350);
-    if(SES.mode==="boss"||SES.mode==="vault"){
+    if(SES.mode!=="quiz"){
       missQ(it,'<div class="codewrap">Answer: <code>'+esc(it.ans.join(it.sep||" "))+'</code></div>');
     }else{SES.combo=0;renderHUD();QS.fill=[];drawBuild(it);}
   }
@@ -1137,12 +1159,12 @@ function mSel(){
     QS.matched++;
     if(QS.matched===it.pairs.length){
       if(QS.mist===0){scoreQ(it,true);}
-      else if(SES.mode==="boss"||SES.mode==="vault"){missQ(it,"All pairs revealed — worth one more look.");}
+      else if(SES.mode!=="quiz"){missQ(it,"All pairs revealed — worth one more look.");}
       else{QS.tries=1;scoreQ(it,false);}
     }
   }else{
     QS.mist++;SES.combo=0;renderHUD();
-    if(SES.mode==="quiz")pushVault();
+    pushVault();
     const L=$("#L"+l),R=$("#R"+r);
     L.classList.remove("sel");R.classList.remove("sel");
     L.classList.add("no");R.classList.add("no");
@@ -1186,6 +1208,9 @@ function finishSes(){
     }else{
       h+='<div class="panel center"><div style="font-size:2rem">💤</div><h2>'+SES.right+'/'+len+' — not this time</h2><p class="dimtxt">You need '+need+'. No penalty, no lives lost. Skim the deck once more or just rematch — bosses reshuffle every time.</p></div><button class="btn primary" onclick="A.boss('+m+')">⚔️ Rematch</button><button class="btn ghost" onclick="A.learn('+m+')">Review the deck first</button><button class="btn ghost" onclick="A.station('+m+')">Back</button>';
     }
+  }else if(mode==="daily"){
+    S.dailyDone=todayStr();save();addXP(25);
+    h+='<div class="panel center"><div style="font-size:2rem">☀️</div><h2>Daily quest done</h2><p class="dimtxt">'+SES.right+'/'+len+' right · +25xp bonus · 🔥 streak safe. Same time tomorrow — small and steady wins.</p></div><button class="btn primary" onclick="A.go(\'home\')">Back to map</button>';
   }else if(mode==="vault"){
     if(S.vault.length===0&&SES.hadItems)badge("vault");
     h+='<div class="panel center"><div style="font-size:2rem">🗃️</div><h2>Vault review done</h2><p class="dimtxt">'+(S.vault.length===0?"Vault is empty. Clean slate.":S.vault.length+" still inside — they leave when you get them right first-try.")+'</p></div><button class="btn primary" onclick="A.go(\'home\')">Back to map</button>';
@@ -1258,7 +1283,7 @@ function obDone(){S.onboarded=true;save();renderHome();}
 /* ═════════ public API + boot ═════════ */
 const A={
   go(n){if(n==="home")renderHome();else if(n==="vault")renderVault();else if(n==="badges")renderBadges();else if(n==="settings")renderSettings();},
-  station:renderStation,learn:startLearn,quiz:startQuiz,boss:startBoss,vaultGo:startVault,
+  station:renderStation,learn:startLearn,quiz:startQuiz,boss:startBoss,vaultGo:startVault,daily:startDaily,
   flip:flipCard,gotIt,pick,fillChip,unfill,bReset,bCheck,mL,mR,next,resume:renderItem.bind(null),exitSes,closeOv,
   irl(i){const p=mp(i);if(p.irl)return;p.irl=true;S.irlCount=(S.irlCount||0)+1;save();addXP(40);if(S.irlCount>=3)badge("shipper");renderStation(i);},
   setS(k,v){S.settings[k]=(k==="fs"?Number(v):v);save();applyPrefs();
